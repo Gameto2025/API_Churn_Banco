@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 import plotly.graph_objects as go
 
-# Configuración de página
+# 1. Configuración de página
 st.set_page_config(page_title="Alura Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
 # --- CSS PERSONALIZADO ---
@@ -75,16 +75,19 @@ if analyze_btn:
     prob = model.predict_proba(data)[0, 1]
     pct = round(prob * 100, 2)
 
-    # Definir estados, colores y RECOMENDACIÓN
+    # Definir estados, colores y RECOMENDACIÓN unificada
     if prob >= 0.58:
-        color_hex, color_bg, estado = "#e24b4a", "#fcd4d4", "RIESGO ALTO"
+        color_hex, color_bg, estado_texto = "#e24b4a", "#fcd4d4", "RIESGO ALTO"
         recomendacion = "Atención prioritaria: Oferta de retención inmediata."
+        etiqueta_tabla = "🔴 Riesgo Alto"
     elif prob >= 0.40:
-        color_hex, color_bg, estado = "#f5a623", "#fde8bc", "RIESGO MEDIO"
+        color_hex, color_bg, estado_texto = "#f5a623", "#fde8bc", "RIESGO MEDIO"
         recomendacion = "Seguimiento: Contactar para encuesta de satisfacción."
+        etiqueta_tabla = "🟡 Riesgo Medio"
     else:
-        color_hex, color_bg, estado = "#3fc47a", "#d4f5e2", "CLIENTE SEGURO"
+        color_hex, color_bg, estado_texto = "#3fc47a", "#d4f5e2", "CLIENTE SEGURO"
         recomendacion = "Fidelizado: Mantener servicios actuales."
+        etiqueta_tabla = "🟢 Seguro"
 
     st.divider()
     res_col1, res_col2 = st.columns([2, 1])
@@ -110,20 +113,20 @@ if analyze_btn:
     with res_col2:
         st.markdown(f"""
             <div style="background-color:{color_bg}; padding:20px; border-radius:15px; border-left: 8px solid {color_hex};">
-                <h3 style="color:#333; margin:0;">{estado}</h3>
+                <h3 style="color:#333; margin:0;">{estado_texto}</h3>
                 <p style="color:#444; font-size:1.1em;">{recomendacion}</p>
             </div>
             """, unsafe_allow_html=True)
 
-    # --- Guardar en historial (Incluyendo la recomendación) ---
+    # --- Guardar en historial ---
     st.session_state.historial.append({
         "riesgo": pct,
-        "alto": prob >= 0.58,
+        "estado": etiqueta_tabla, 
         "edad": age,
         "pais": pais_seleccionado,
         "productos": products,
         "activo": "No" if inactivo == 1 else "Sí",
-        "recomendacion": recomendacion  # <--- Nueva clave añadida
+        "recomendacion": recomendacion
     })
 
 # --- VISUALIZACIÓN DE HISTORIAL ---
@@ -131,14 +134,9 @@ if len(st.session_state.historial) > 0:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
 
-    h = st.session_state.historial
-    
     # Tabla historial
     with st.expander("🗂️ Ver detalle de últimos analizados", expanded=True):
         df_historial = pd.DataFrame(st.session_state.historial[-10:][::-1])
-        
-        # Formatear la columna de estado visual
-        df_historial["Estado"] = df_historial["alto"].apply(lambda x: "🔴 Riesgo" if x else "🟢 Seguro")
         
         # Renombrar columnas para la tabla final
         df_display = df_historial.rename(columns={
@@ -147,7 +145,8 @@ if len(st.session_state.historial) > 0:
             "pais": "País",
             "productos": "Prod.", 
             "activo": "Activo",
-            "recomendacion": "Plan de Acción"  # <--- Nombre de columna en la tabla
+            "estado": "Estado",
+            "recomendacion": "Plan de Acción"
         })[["Edad", "País", "Activo", "% Riesgo", "Estado", "Plan de Acción"]]
         
         st.dataframe(df_display, use_container_width=True)
