@@ -102,3 +102,16 @@ if "historial" in st.session_state and len(st.session_state.historial) > 0:
     col2.metric("Riesgo alto", riesgo_alto)
     col3.metric("Clientes seguros", riesgo_seguro)
     col4.metric("Riesgo promedio", f"{promedio:.1f}%")
+
+# --- Tabla historial últimos 10 clientes ---
+    st.subheader("🗂️ Últimos clientes analizados")
+
+    df_historial = pd.DataFrame(st.session_state.historial[-10:][::-1])
+    df_historial.index = range(1, len(df_historial) + 1)
+    df_historial["estado"] = df_historial["alto"].apply(
+        lambda x: "🔴 Riesgo alto" if x else "🟢 Seguro"
+    )
+    df_historial = df_historial.rename(columns={"riesgo": "% Riesgo"})[["% Riesgo", "estado"]]
+    df_historial.index.name = "Cliente"
+
+    st.dataframe(df_historial, use_container_width=True)
