@@ -11,8 +11,8 @@ def load_model():
 
 model = load_model()
 
-st.title("🏦 Predicción de Churn Insight Banking")
-st.markdown("Identifica clientes en riesgo de abandono.")
+st.title("🏦 Churn Insight Banking")
+st.markdown("Predice los clientes en riesgo de abandono.")
 st.divider()
 
 st.subheader("📋 Datos del Cliente")
