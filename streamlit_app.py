@@ -29,7 +29,11 @@ with col2:
     diccionario_paises = {"Francia": 0, "Alemania": 1, "España": 2}
     c_risk = diccionario_paises[pais_seleccionado]
 
-if st.button("Analizar Cliente"):                          # ← DENTRO del if
+# Inicializar historial si no existe (debe estar fuera del botón para persistir)
+if "historial" not in st.session_state:
+    st.session_state.historial = []
+
+if st.button("Analizar Cliente"):
     data = pd.DataFrame([[age, products, inactivo, 0, c_risk]],
                         columns=['Age', 'NumOfProducts', 'Inactivo_40_70',
                                  'Products_Risk_Flag', 'Country_Risk_Flag'])
@@ -77,23 +81,19 @@ if st.button("Analizar Cliente"):                          # ← DENTRO del if
     st.plotly_chart(fig, use_container_width=True)
     st.info(mensaje)
 
-   # --- Guardar en historial ---
-# Aseguramos que la lista exista en el estado de la sesión
-if "historial" not in st.session_state:
-    st.session_state.historial = []
+    # --- Guardar en historial ---
+    # (Dentro del botón para que solo agregue cuando se haga clic)
+    st.session_state.historial.append({
+        "riesgo": pct,
+        "alto": prob >= 0.58,
+        "edad": age,
+        "pais": pais_seleccionado,
+        "productos": products,
+        "activo": "No" if inactivo == 1 else "Sí"
+    })
 
-# Agregamos el nuevo registro a la lista
-st.session_state.historial.append({
-    "riesgo": pct,
-    "alto": prob >= 0.58,
-    "edad": age,
-    "pais": pais_seleccionado,
-    "productos": products,
-    "activo": "No" if inactivo == 1 else "Sí"
-})
-
-# --- Métricas resumen ← AQUÍ termina el if, esto va SIN indentación
-if "historial" in st.session_state and len(st.session_state.historial) > 0:
+# --- Bloque de Visualización (FUERA del botón) ---
+if len(st.session_state.historial) > 0:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
 
@@ -109,23 +109,22 @@ if "historial" in st.session_state and len(st.session_state.historial) > 0:
     col3.metric("Clientes seguros", riesgo_seguro)
     col4.metric("Riesgo promedio", f"{promedio:.1f}%")
 
-# --- Tabla historial últimos 10 clientes ---
-  st.subheader("🗂️ Últimos clientes analizados")
+    # --- Tabla historial últimos 10 clientes ---
+    st.subheader("🗂️ Últimos clientes analizados")
 
     df_historial = pd.DataFrame(st.session_state.historial[-10:][::-1])
-    df_historial.index = range(1, len(df_historial) + 1)
-    df_historial.index.name = "N°"
-
+    
+    # Formatear la tabla
     df_historial["Estado"] = df_historial["alto"].apply(
         lambda x: "🔴 Riesgo alto" if x else "🟢 Seguro"
     )
 
     df_historial = df_historial.rename(columns={
         "riesgo":     "% Riesgo",
-        "edad":       "Edad",
-        "pais":       "País",
+        "edad":        "Edad",
+        "pais":        "País",
         "productos":  "Productos",
-        "activo":     "Activo"
+        "activo":      "Activo"
     })[["Edad", "País", "Productos", "Activo", "% Riesgo", "Estado"]]
 
     st.dataframe(df_historial, use_container_width=True)
