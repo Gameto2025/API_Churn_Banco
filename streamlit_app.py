@@ -77,17 +77,20 @@ if st.button("Analizar Cliente"):                          # ← DENTRO del if
     st.plotly_chart(fig, use_container_width=True)
     st.info(mensaje)
 
-    # --- Guardar en historial ← TODAVÍA dentro del if, al final
-     if "historial" not in st.session_state:
-        st.session_state.historial = []
-    st.session_state.historial.append({
-        "riesgo": pct,
-        "alto": prob >= 0.58,
-        "edad": age,
-        "pais": pais_seleccionado,
-        "productos": products,
-        "activo": "No" if inactivo == 1 else "Sí"
-    })
+   # --- Guardar en historial ---
+# Aseguramos que la lista exista en el estado de la sesión
+if "historial" not in st.session_state:
+    st.session_state.historial = []
+
+# Agregamos el nuevo registro a la lista
+st.session_state.historial.append({
+    "riesgo": pct,
+    "alto": prob >= 0.58,
+    "edad": age,
+    "pais": pais_seleccionado,
+    "productos": products,
+    "activo": "No" if inactivo == 1 else "Sí"
+})
 
 # --- Métricas resumen ← AQUÍ termina el if, esto va SIN indentación
 if "historial" in st.session_state and len(st.session_state.historial) > 0:
