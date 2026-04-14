@@ -143,7 +143,7 @@ if len(st.session_state.historial) > 0:
             "riesgo": "% Riesgo", 
             "edad": "Edad", 
             "pais": "País",
-            "productos": "Prod.", 
+            "productos": "Productos Contratados", 
             "activo": "Activo",
             "estado": "Estado",
             "recomendacion": "Plan de Acción"
