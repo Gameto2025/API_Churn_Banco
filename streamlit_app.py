@@ -53,7 +53,7 @@ with st.container():
     col1, col2 = st.columns(2)
     with col1:
         age = st.slider("Edad del cliente", 18, 90, 40)
-        products = st.selectbox("Número de productos", options=[1, 2, 3, 4])
+        products = st.selectbox("Número de Productos Contratados", options=[1, 2, 3, 4])
     with col2:
         inactivo = st.selectbox("¿Estado de actividad?", options=[0, 1],
                                 format_func=lambda x: "Inactivo" if x == 1 else "Activo")
