@@ -29,7 +29,7 @@ with col2:
     diccionario_paises = {"Francia": 0, "Alemania": 1, "España": 2}
     c_risk = diccionario_paises[pais_seleccionado]
 
-if st.button("Analizar Cliente"):
+if st.button("Analizar Cliente"):                          # ← DENTRO del if
     data = pd.DataFrame([[age, products, inactivo, 0, c_risk]],
                         columns=['Age', 'NumOfProducts', 'Inactivo_40_70',
                                  'Products_Risk_Flag', 'Country_Risk_Flag'])
@@ -39,7 +39,6 @@ if st.button("Analizar Cliente"):
 
     st.subheader("🚀 Resultado del Análisis")
 
-    # --- Gauge ---
     if prob >= 0.58:
         color_aguja = "#e24b4a"
         estado = "RIESGO ALTO"
@@ -77,3 +76,29 @@ if st.button("Analizar Cliente"):
     fig.update_layout(height=300, margin=dict(t=60, b=10, l=20, r=20))
     st.plotly_chart(fig, use_container_width=True)
     st.info(mensaje)
+
+    # --- Guardar en historial ← TODAVÍA dentro del if, al final
+    if "historial" not in st.session_state:
+        st.session_state.historial = []
+
+    st.session_state.historial.append({
+        "riesgo": pct,
+        "alto": prob >= 0.58
+    })
+
+# --- Métricas resumen ← AQUÍ termina el if, esto va SIN indentación
+if "historial" in st.session_state and len(st.session_state.historial) > 0:
+    st.divider()
+    st.subheader("📊 Resumen de la sesión")
+
+    historial = st.session_state.historial
+    total = len(historial)
+    riesgo_alto = sum(1 for h in historial if h["alto"])
+    riesgo_seguro = total - riesgo_alto
+    promedio = sum(h["riesgo"] for h in historial) / total
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total analizados", total)
+    col2.metric("Riesgo alto", riesgo_alto)
+    col3.metric("Clientes seguros", riesgo_seguro)
+    col4.metric("Riesgo promedio", f"{promedio:.1f}%")
