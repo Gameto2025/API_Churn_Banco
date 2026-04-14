@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 1. Configuración de página
-st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
+st.set_page_config(page_title="Alura Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -53,7 +53,7 @@ with st.container():
     col1, col2 = st.columns(2)
     with col1:
         age = st.slider("Edad del cliente", 18, 90, 40)
-        products = st.selectbox("Número de Productos Contratados", options=[1, 2, 3, 4])
+        products = st.selectbox("Número de productos", options=[1, 2, 3, 4])
     with col2:
         inactivo = st.selectbox("¿Estado de actividad?", options=[0, 1],
                                 format_func=lambda x: "Inactivo" if x == 1 else "Activo")
@@ -75,7 +75,7 @@ if analyze_btn:
     prob = model.predict_proba(data)[0, 1]
     pct = round(prob * 100, 2)
 
-    # Definir estados, colores y RECOMENDACIÓN unificada
+    # Definir estados, colores y recomendación
     if prob >= 0.58:
         color_hex, color_bg, estado_texto = "#e24b4a", "#fcd4d4", "RIESGO ALTO"
         recomendacion = "Atención prioritaria: Oferta de retención inmediata."
@@ -138,7 +138,7 @@ if len(st.session_state.historial) > 0:
     with st.expander("🗂️ Ver detalle de últimos analizados", expanded=True):
         df_historial = pd.DataFrame(st.session_state.historial[-10:][::-1])
         
-        # Renombrar columnas para la tabla final
+        # Renombrar columnas para la tabla final incluyendo Productos (Prod.)
         df_display = df_historial.rename(columns={
             "riesgo": "% Riesgo", 
             "edad": "Edad", 
@@ -147,6 +147,6 @@ if len(st.session_state.historial) > 0:
             "activo": "Activo",
             "estado": "Estado",
             "recomendacion": "Plan de Acción"
-        })[["Edad", "País", "Activo", "% Riesgo", "Estado", "Plan de Acción"]]
+        })[["Edad", "País", "Prod.", "Activo", "% Riesgo", "Estado", "Plan de Acción"]]
         
         st.dataframe(df_display, use_container_width=True)
