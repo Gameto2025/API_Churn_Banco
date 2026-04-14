@@ -78,12 +78,15 @@ if st.button("Analizar Cliente"):                          # ← DENTRO del if
     st.info(mensaje)
 
     # --- Guardar en historial ← TODAVÍA dentro del if, al final
-    if "historial" not in st.session_state:
+     if "historial" not in st.session_state:
         st.session_state.historial = []
-
     st.session_state.historial.append({
         "riesgo": pct,
-        "alto": prob >= 0.58
+        "alto": prob >= 0.58,
+        "edad": age,
+        "pais": pais_seleccionado,
+        "productos": products,
+        "activo": "No" if inactivo == 1 else "Sí"
     })
 
 # --- Métricas resumen ← AQUÍ termina el if, esto va SIN indentación
@@ -104,14 +107,22 @@ if "historial" in st.session_state and len(st.session_state.historial) > 0:
     col4.metric("Riesgo promedio", f"{promedio:.1f}%")
 
 # --- Tabla historial últimos 10 clientes ---
-    st.subheader("🗂️ Últimos clientes analizados")
+  st.subheader("🗂️ Últimos clientes analizados")
 
     df_historial = pd.DataFrame(st.session_state.historial[-10:][::-1])
     df_historial.index = range(1, len(df_historial) + 1)
-    df_historial["estado"] = df_historial["alto"].apply(
+    df_historial.index.name = "N°"
+
+    df_historial["Estado"] = df_historial["alto"].apply(
         lambda x: "🔴 Riesgo alto" if x else "🟢 Seguro"
     )
-    df_historial = df_historial.rename(columns={"riesgo": "% Riesgo"})[["% Riesgo", "estado"]]
-    df_historial.index.name = "Cliente"
+
+    df_historial = df_historial.rename(columns={
+        "riesgo":     "% Riesgo",
+        "edad":       "Edad",
+        "pais":       "País",
+        "productos":  "Productos",
+        "activo":     "Activo"
+    })[["Edad", "País", "Productos", "Activo", "% Riesgo", "Estado"]]
 
     st.dataframe(df_historial, use_container_width=True)
