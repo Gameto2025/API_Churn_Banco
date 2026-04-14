@@ -11,8 +11,8 @@ def load_model():
 
 model = load_model()
 
-st.title("🏦 Dashboard de Predicción: Banco Alura")
-st.markdown("Identifica clientes en riesgo de abandono mediante Machine Learning.")
+st.title("🏦 Dashboard de Predicción:Churn Insigth Banking")
+st.markdown("Identifica clientes en riesgo de abandono.")
 st.divider()
 
 st.subheader("📋 Datos del Cliente")
