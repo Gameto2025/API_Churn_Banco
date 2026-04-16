@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 1. Configuración de página
-st.set_page_config(page_title="Alura Bank - Churn Predictor", page_icon="🏦", layout="wide")
+st.set_page_config(page_title="Churn Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
