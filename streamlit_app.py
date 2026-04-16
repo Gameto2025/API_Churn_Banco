@@ -58,7 +58,7 @@ def procesar_datos(df_input):
             "% Riesgo": pct,
             "Estado": estado,
             "Plan de Acción": rec,
-            "color_hex": color # Guardamos el color para el gráfico
+            "color_hex": color 
         })
     return resultados
 
@@ -82,11 +82,14 @@ if "historial" not in st.session_state:
 
 # --- LÓGICA CSV ---
 if uploaded_file is not None:
-    df_upload = pd.read_csv(uploaded_file)
-    if st.button("🚀 Procesar Archivo CSV"):
-        nuevos = procesar_datos(df_upload)
-        st.session_state.historial.extend(nuevos)
-        st.success(f"✅ {len(nuevos)} clientes agregados al historial.")
+    try:
+        df_upload = pd.read_csv(uploaded_file)
+        if st.button("🚀 Procesar Archivo CSV"):
+            nuevos = procesar_datos(df_upload)
+            st.session_state.historial.extend(nuevos)
+            st.success(f"✅ {len(nuevos)} clientes agregados.")
+    except Exception as e:
+        st.error(f"Error al procesar CSV: {e}")
 
 # --- ANÁLISIS INDIVIDUAL ---
 st.subheader("📋 Análisis Individual")
@@ -106,7 +109,7 @@ with st.container():
 if analyze_btn:
     if not client_id:
         st.error("Ingrese un ID.")
-    elif any(item['ID Cliente'] == client_id for item in st.session_state.historial):
+    elif any(item.get('ID Cliente') == client_id for item in st.session_state.historial):
         st.error("ID duplicado.")
     else:
         df_m = pd.DataFrame([{'ID Cliente': client_id, 'Age': age, 'NumOfProducts': num_p, 
@@ -115,7 +118,7 @@ if analyze_btn:
         res = procesar_datos(df_m)[0]
         st.session_state.historial.append(res)
         
-        # --- RE-AGREGAR EL GRÁFICO ---
+        # Gráfico
         st.divider()
         g1, g2 = st.columns([2, 1])
         with g1:
@@ -137,5 +140,12 @@ if st.session_state.historial:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
     df_h = pd.DataFrame(st.session_state.historial[::-1])
-    # Ocultamos la columna técnica del color para que la tabla sea limpia
-    st.dataframe(df_h.drop(columns=['color_hex']), use_container_width=True, hide_index=True)
+    
+    # SOLUCIÓN AL ERROR: Usamos errors='ignore' para que no falle si la columna no existe
+    df_visible = df_h.drop(columns=['color_hex'], errors='ignore')
+    
+    st.dataframe(df_visible, use_container_width=True, hide_index=True)
+    
+    # Botón de descarga
+    csv_data = df_visible.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Descargar Reporte", csv_data, "reporte_churn.csv", "text/csv")
