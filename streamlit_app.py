@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 1. Configuración de página
-st.set_page_config(page_title="Alura Bank - Churn Predictor", page_icon="🏦", layout="wide")
+st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -83,7 +83,7 @@ if "historial" not in st.session_state:
 # --- LÓGICA CSV ---
 if uploaded_file is not None:
     try:
-        df_upload = pd.read_csv(uploaded_file)
+        df_upload = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
         if st.button("🚀 Procesar Archivo CSV"):
             nuevos = procesar_datos(df_upload)
             st.session_state.historial.extend(nuevos)
