@@ -148,5 +148,23 @@ if analyze_btn:
 if st.session_state.historial:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
+    # --- MÉTRICAS DE RESUMEN (Insertar aquí) ---
+    df_metriz = pd.DataFrame(st.session_state.historial)
+    col_m1, col_m2, col_m3 = st.columns(3)
+    
+    with col_m1:
+        avg_risk = df_metriz["% Riesgo"].mean()
+        st.metric("Riesgo Promedio", f"{avg_risk:.2f}%")
+        
+    with col_m2:
+        # Filtramos los que tienen riesgo alto (>= 58%)
+        alto_riesgo = len(df_metriz[df_metriz["% Riesgo"] >= 58])
+        st.metric("Clientes en Riesgo Alto", alto_riesgo, delta=alto_riesgo, delta_color="inverse" if alto_riesgo > 0 else "normal")
+        
+    with col_m3:
+        st.metric("Total Analizados", len(df_metriz))
+    
+    st.divider() 
+    # -------------------------------------------
     df_h = pd.DataFrame(st.session_state.historial[::-1])
     st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
