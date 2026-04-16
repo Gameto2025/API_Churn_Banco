@@ -51,11 +51,11 @@ def procesar_datos(df_input):
     for i, prob in enumerate(probs):
         pct = round(prob * 100, 2)
         if prob >= 0.58:
-            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria.", "#e24b4a"
+            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria: Oferta de retención inmediata. Ofrecer promociones.", "#e24b4a"
         elif prob >= 0.40:
-            estado, rec, color = "🟡 Riesgo Medio", "Seguimiento.", "#f5a623"
+            estado, rec, color = "🟡 Riesgo Medio", "Seguimiento: Llamar y realizar encuesta de satisfacción.", "#f5a623"
         else:
-            estado, rec, color = "🟢 Seguro", "Fidelizado.", "#3fc47a"
+            estado, rec, color = "🟢 Seguro", "Fidelizado: Mantener servicios actuales.", "#3fc47a"
             
         resultados.append({
             "ID Cliente": df_input.iloc[i].get("ID Cliente", df_input.iloc[i].get("ID", f"Batch-{i}")),
