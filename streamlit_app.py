@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 1. Configuración de página
-st.set_page_config(page_title="Churn Bank - Churn Predictor", page_icon="🏦", layout="wide")
+st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -49,8 +49,12 @@ st.divider()
 
 # --- SECCIÓN DE ENTRADA ---
 st.subheader("📋 Datos del Cliente")
+
+if "historial" not in st.session_state:
+    st.session_state.historial = []
+
 with st.container():
-    # CAMBIO 1: Nueva fila para el ID del Cliente
+    # Input de ID
     client_id = st.text_input("ID del Cliente", placeholder="Ej: CLI-2024-001")
     
     col1, col2 = st.columns(2)
@@ -66,15 +70,18 @@ with st.container():
 
     analyze_btn = st.button("🔍 Analizar Cliente")
 
-if "historial" not in st.session_state:
-    st.session_state.historial = []
-
-# --- LÓGICA DE PREDICCIÓN ---
+# --- LÓGICA DE PREDICCIÓN Y VALIDACIÓN ---
 if analyze_btn:
-    # Validación simple: si el ID está vacío, avisamos al usuario
+    # 1. Verificar si el campo está vacío
     if not client_id:
-        st.error("Por favor, ingrese un ID de cliente para continuar.")
+        st.error("⚠️ Error: El ID del cliente no puede estar vacío.")
+    
+    # 2. Verificar si el ID ya existe en el historial (NUEVA VALIDACIÓN)
+    elif any(item['ID Cliente'] == client_id for item in st.session_state.historial):
+        st.error(f"❌ Error: El ID '{client_id}' ya ha sido analizado en esta sesión. Use un ID diferente.")
+    
     else:
+        # Si pasa las validaciones, procedemos con el modelo
         data = pd.DataFrame([[age, num_productos, inactivo, 0, c_risk]],
                             columns=['Age', 'NumOfProducts', 'Inactivo_40_70',
                                      'Products_Risk_Flag', 'Country_Risk_Flag'])
@@ -124,7 +131,6 @@ if analyze_btn:
                 """, unsafe_allow_html=True)
 
         # --- GUARDAR EN HISTORIAL ---
-        # CAMBIO 2: Se agrega el ID del Cliente como primera columna
         st.session_state.historial.append({
             "ID Cliente": client_id,
             "Edad": age,
@@ -142,6 +148,5 @@ if len(st.session_state.historial) > 0:
     st.subheader("📊 Resumen de la sesión")
 
     with st.expander("🗂️ Ver detalle de últimos analizados", expanded=True):
-        # CAMBIO 3: El DataFrame hereda el orden del diccionario automáticamente
         df_display = pd.DataFrame(st.session_state.historial[-10:][::-1])
         st.dataframe(df_display, use_container_width=True, hide_index=True)
