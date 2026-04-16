@@ -34,10 +34,44 @@ def load_model():
 
 model = load_model()
 
+# --- FUNCIÓN PROCESADORA DE RIESGO ---
+def procesar_datos(df_input):
+    """Aplica el modelo y genera las etiquetas de negocio"""
+    # Preparar datos para el modelo (usando los nombres de columnas originales)
+    X = df_input[['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']]
+    
+    probs = model.predict_proba(X)[:, 1]
+    
+    resultados = []
+    for i, prob in enumerate(probs):
+        pct = round(prob * 100, 2)
+        if prob >= 0.58:
+            estado, rec = "🔴 Riesgo Alto", "Atención prioritaria: Oferta de retención inmediata."
+        elif prob >= 0.40:
+            estado, rec = "🟡 Riesgo Medio", "Seguimiento: Contactar para encuesta de satisfacción."
+        else:
+            estado, rec = "🟢 Seguro", "Fidelizado: Mantener servicios actuales."
+            
+        resultados.append({
+            "ID Cliente": df_input.iloc[i].get("ID Cliente", f"Batch-{i}"),
+            "Edad": df_input.iloc[i]["Age"],
+            "País": df_input.iloc[i].get("Pais_Nombre", "N/A"),
+            "Productos contratados": df_input.iloc[i]["NumOfProducts"],
+            "Activo": "Sí" if df_input.iloc[i]["Inactivo_40_70"] == 0 else "No",
+            "% Riesgo": pct,
+            "Estado": estado,
+            "Plan de Acción": rec
+        })
+    return resultados
+
 # --- SIDEBAR ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png", width=100)
     st.title("Panel de Control")
+    
+    st.subheader("📁 Carga Masiva")
+    uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
+    
     if st.button("Limpiar Historial"):
         st.session_state.historial = []
         st.rerun()
@@ -47,16 +81,29 @@ st.title("🏦 Churn Insight Banking")
 st.markdown("*Inteligencia Artificial aplicada a la retención de clientes.*")
 st.divider()
 
-# --- SECCIÓN DE ENTRADA ---
-st.subheader("📋 Datos del Cliente")
-
 if "historial" not in st.session_state:
     st.session_state.historial = []
 
+# --- LÓGICA DE CARGA POR ARCHIVO ---
+if uploaded_file is not None:
+    try:
+        df_upload = pd.read_csv(uploaded_file)
+        # Verificamos columnas mínimas necesarias
+        required = ['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']
+        if all(col in df_upload.columns for col in required):
+            if st.button("🚀 Procesar Archivo CSV"):
+                nuevos_registros = procesar_datos(df_upload)
+                st.session_state.historial.extend(nuevos_registros)
+                st.success(f"✅ Se han procesado {len(nuevos_registros)} clientes con éxito.")
+        else:
+            st.error(f"El CSV debe contener las columnas: {required}")
+    except Exception as e:
+        st.error(f"Error al leer el archivo: {e}")
+
+# --- SECCIÓN DE ENTRADA MANUAL ---
+st.subheader("📋 Análisis Individual")
 with st.container():
-    # Input de ID
     client_id = st.text_input("ID del Cliente", placeholder="Ej: CLI-2024-001")
-    
     col1, col2 = st.columns(2)
     with col1:
         age = st.slider("Edad del cliente", 18, 90, 40)
@@ -68,85 +115,40 @@ with st.container():
         diccionario_paises = {"Francia": 0, "Alemania": 1, "España": 2}
         c_risk = diccionario_paises[pais_seleccionado]
 
-    analyze_btn = st.button("🔍 Analizar Cliente")
+    analyze_btn = st.button("🔍 Analizar Cliente Individual")
 
-# --- LÓGICA DE PREDICCIÓN Y VALIDACIÓN ---
 if analyze_btn:
-    # 1. Verificar si el campo está vacío
     if not client_id:
-        st.error("⚠️ Error: El ID del cliente no puede estar vacío.")
-    
-    # 2. Verificar si el ID ya existe en el historial (NUEVA VALIDACIÓN)
+        st.error("⚠️ El ID del cliente es obligatorio.")
     elif any(item['ID Cliente'] == client_id for item in st.session_state.historial):
-        st.error(f"❌ Error: El ID '{client_id}' ya ha sido analizado en esta sesión. Use un ID diferente.")
-    
+        st.error(f"❌ El ID '{client_id}' ya existe en el historial.")
     else:
-        # Si pasa las validaciones, procedemos con el modelo
-        data = pd.DataFrame([[age, num_productos, inactivo, 0, c_risk]],
-                            columns=['Age', 'NumOfProducts', 'Inactivo_40_70',
-                                     'Products_Risk_Flag', 'Country_Risk_Flag'])
-
-        prob = model.predict_proba(data)[0, 1]
-        pct = round(prob * 100, 2)
-
-        if prob >= 0.58:
-            color_hex, color_bg, estado_texto = "#e24b4a", "#fcd4d4", "RIESGO ALTO"
-            recomendacion = "Atención prioritaria: Oferta de retención inmediata."
-            etiqueta_tabla = "🔴 Riesgo Alto"
-        elif prob >= 0.40:
-            color_hex, color_bg, estado_texto = "#f5a623", "#fde8bc", "RIESGO MEDIO"
-            recomendacion = "Seguimiento: Contactar para encuesta de satisfacción."
-            etiqueta_tabla = "🟡 Riesgo Medio"
-        else:
-            color_hex, color_bg, estado_texto = "#3fc47a", "#d4f5e2", "CLIENTE SEGURO"
-            recomendacion = "Fidelizado: Mantener servicios actuales."
-            etiqueta_tabla = "🟢 Seguro"
-
-        st.divider()
-        res_col1, res_col2 = st.columns([2, 1])
+        # Crear DataFrame de un solo registro para la función
+        df_manual = pd.DataFrame([{
+            'ID Cliente': client_id,
+            'Age': age,
+            'NumOfProducts': num_productos,
+            'Inactivo_40_70': inactivo,
+            'Products_Risk_Flag': 0,
+            'Country_Risk_Flag': c_risk,
+            'Pais_Nombre': pais_seleccionado
+        }])
         
-        with res_col1:
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number", value=pct,
-                number={"suffix": "%", "font": {"size": 40}},
-                gauge={
-                    "axis": {"range": [0, 100]},
-                    "bar": {"color": color_hex},
-                    "steps": [
-                        {"range": [0, 40], "color": "#d4f5e2"},
-                        {"range": [40, 58], "color": "#fde8bc"},
-                        {"range": [58, 100], "color": "#fcd4d4"},
-                    ]
-                }
-            ))
-            fig.update_layout(height=250, margin=dict(t=0, b=0))
-            st.plotly_chart(fig, use_container_width=True)
-
-        with res_col2:
-            st.markdown(f"""
-                <div style="background-color:{color_bg}; padding:20px; border-radius:15px; border-left: 8px solid {color_hex};">
-                    <h3 style="color:#333; margin:0;">{estado_texto}</h3>
-                    <p style="color:#444; font-size:1.1em;">{recomendacion}</p>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # --- GUARDAR EN HISTORIAL ---
-        st.session_state.historial.append({
-            "ID Cliente": client_id,
-            "Edad": age,
-            "País": pais_seleccionado,
-            "Productos contratados": num_productos,
-            "Activo": "No" if inactivo == 1 else "Sí",
-            "% Riesgo": pct,
-            "Estado": etiqueta_tabla,
-            "Plan de Acción": recomendacion
-        })
+        resultado = procesar_datos(df_manual)[0]
+        st.session_state.historial.append(resultado)
+        
+        # Mostrar métricas del análisis individual
+        st.metric("Probabilidad de Churn", f"{resultado['% Riesgo']}%")
 
 # --- VISUALIZACIÓN DE HISTORIAL ---
 if len(st.session_state.historial) > 0:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
-
+    
     with st.expander("🗂️ Ver detalle de últimos analizados", expanded=True):
-        df_display = pd.DataFrame(st.session_state.historial[-10:][::-1])
+        df_display = pd.DataFrame(st.session_state.historial[::-1])
         st.dataframe(df_display, use_container_width=True, hide_index=True)
+        
+        # Opción para descargar los resultados de la sesión
+        csv_download = df_display.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Descargar Resultados (CSV)", csv_download, "analisis_churn.csv", "text/csv")
