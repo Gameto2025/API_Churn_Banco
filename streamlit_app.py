@@ -2,6 +2,7 @@ import streamlit as st
 import joblib
 import pandas as pd
 import plotly.graph_objects as go
+import io
 
 # 1. Configuración de página
 st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
@@ -17,13 +18,8 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
     div.stButton > button:first-child {
-        background-color: #004a99;
-        color: white;
-        width: 100%;
-        border-radius: 10px;
-        height: 3.5em;
-        font-weight: bold;
-        border: none;
+        background-color: #004a99; color: white; width: 100%;
+        border-radius: 10px; height: 3.5em; font-weight: bold; border: none;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -34,23 +30,35 @@ def load_model():
 
 model = load_model()
 
-# --- FUNCIÓN PROCESADORA DE RIESGO ---
+# --- FUNCIÓN PROCESADORA ---
 def procesar_datos(df_input):
-    X = df_input[['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']]
+    # Limpiar nombres de columnas por si vienen con saltos de línea o espacios
+    df_input.columns = df_input.columns.str.replace(r'\r|\n', '', regex=True).str.strip()
+    
+    # Columnas requeridas por el modelo
+    required = ['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']
+    
+    # Verificar si faltan columnas
+    missing = [c for c in required if c not in df_input.columns]
+    if missing:
+        st.error(f"Faltan columnas en el archivo: {missing}")
+        return []
+
+    X = df_input[required]
     probs = model.predict_proba(X)[:, 1]
     
     resultados = []
     for i, prob in enumerate(probs):
         pct = round(prob * 100, 2)
         if prob >= 0.58:
-            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria: Oferta de retención inmediata.", "#e24b4a"
+            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria.", "#e24b4a"
         elif prob >= 0.40:
-            estado, rec, color = "🟡 Riesgo Medio", "Seguimiento: Contactar para encuesta de satisfacción.", "#f5a623"
+            estado, rec, color = "🟡 Riesgo Medio", "Seguimiento.", "#f5a623"
         else:
-            estado, rec, color = "🟢 Seguro", "Fidelizado: Mantener servicios actuales.", "#3fc47a"
+            estado, rec, color = "🟢 Seguro", "Fidelizado.", "#3fc47a"
             
         resultados.append({
-            "ID Cliente": df_input.iloc[i].get("ID Cliente", f"Batch-{i}"),
+            "ID Cliente": df_input.iloc[i].get("ID Cliente", df_input.iloc[i].get("ID", f"Batch-{i}")),
             "Edad": df_input.iloc[i]["Age"],
             "País": df_input.iloc[i].get("Pais_Nombre", "N/A"),
             "Productos contratados": df_input.iloc[i]["NumOfProducts"],
@@ -72,24 +80,31 @@ with st.sidebar:
         st.session_state.historial = []
         st.rerun()
 
+# --- LÓGICA DE CARGA CSV ---
+if uploaded_file is not None:
+    try:
+        # Leer el contenido para limpiar posibles saltos de línea raros en los encabezados
+        content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
+        # Reemplazar saltos de línea que ocurren dentro de las comillas o mal formateados
+        content = content.replace("Inactivo_40_\r\n70", "Inactivo_40_70").replace("Inactivo_40_\n70", "Inactivo_40_70")
+        
+        # Leer con pandas detectando el separador (coma o punto y coma)
+        df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
+        
+        if st.button("🚀 Procesar Archivo CSV"):
+            nuevos = procesar_datos(df_upload)
+            if nuevos:
+                st.session_state.historial.extend(nuevos)
+                st.success(f"✅ {len(nuevos)} clientes procesados.")
+    except Exception as e:
+        st.error(f"Error al leer el archivo: {e}")
+
 # --- HEADER ---
 st.title("🏦 Churn Insight Banking")
-st.markdown("*Inteligencia Artificial aplicada a la retención de clientes.*")
 st.divider()
 
 if "historial" not in st.session_state:
     st.session_state.historial = []
-
-# --- LÓGICA CSV ---
-if uploaded_file is not None:
-    try:
-        df_upload = pd.read_csv(uploaded_file, sep=None, engine='python', encoding='utf-8')
-        if st.button("🚀 Procesar Archivo CSV"):
-            nuevos = procesar_datos(df_upload)
-            st.session_state.historial.extend(nuevos)
-            st.success(f"✅ {len(nuevos)} clientes agregados.")
-    except Exception as e:
-        st.error(f"Error al procesar CSV: {e}")
 
 # --- ANÁLISIS INDIVIDUAL ---
 st.subheader("📋 Análisis Individual")
@@ -115,37 +130,23 @@ if analyze_btn:
         df_m = pd.DataFrame([{'ID Cliente': client_id, 'Age': age, 'NumOfProducts': num_p, 
                              'Inactivo_40_70': inactivo, 'Products_Risk_Flag': 0, 
                              'Country_Risk_Flag': c_risk, 'Pais_Nombre': pais}])
-        res = procesar_datos(df_m)[0]
-        st.session_state.historial.append(res)
-        
-        # Gráfico
-        st.divider()
-        g1, g2 = st.columns([2, 1])
-        with g1:
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number", value=res['% Riesgo'],
-                number={"suffix": "%", "font": {"size": 40}},
-                gauge={"axis": {"range": [0, 100]}, "bar": {"color": res['color_hex']},
-                       "steps": [{"range": [0, 40], "color": "#d4f5e2"},
-                                 {"range": [40, 58], "color": "#fde8bc"},
-                                 {"range": [58, 100], "color": "#fcd4d4"}]}))
-            fig.update_layout(height=250, margin=dict(t=0, b=0))
-            st.plotly_chart(fig, use_container_width=True)
-        with g2:
-            st.markdown(f"""<div style="background-color:#f8f9fa; padding:20px; border-radius:15px; border-left: 8px solid {res['color_hex']};">
-                <h3>{res['Estado']}</h3><p>{res['Plan de Acción']}</p></div>""", unsafe_allow_html=True)
+        res_list = procesar_datos(df_m)
+        if res_list:
+            res = res_list[0]
+            st.session_state.historial.append(res)
+            # Gráfico y Resultado...
+            g1, g2 = st.columns([2, 1])
+            with g1:
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number", value=res['% Riesgo'],
+                    gauge={"axis": {"range": [0, 100]}, "bar": {"color": res['color_hex']}}))
+                st.plotly_chart(fig, use_container_width=True)
+            with g2:
+                st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
 
 # --- TABLA RESUMEN ---
 if st.session_state.historial:
     st.divider()
     st.subheader("📊 Resumen de la sesión")
     df_h = pd.DataFrame(st.session_state.historial[::-1])
-    
-    # SOLUCIÓN AL ERROR: Usamos errors='ignore' para que no falle si la columna no existe
-    df_visible = df_h.drop(columns=['color_hex'], errors='ignore')
-    
-    st.dataframe(df_visible, use_container_width=True, hide_index=True)
-    
-    # Botón de descarga
-    csv_data = df_visible.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Descargar Reporte", csv_data, "reporte_churn.csv", "text/csv")
+    st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
