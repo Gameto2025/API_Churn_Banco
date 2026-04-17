@@ -23,7 +23,7 @@ def generar_pdf(df):
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
     pdf.ln(5)
 
-  try:
+     try:
         # --- Gráfico de Barras ---
         plt.figure(figsize=(5, 3))
         conteo_p = df["País"].value_counts()
