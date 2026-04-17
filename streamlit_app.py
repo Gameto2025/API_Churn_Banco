@@ -7,7 +7,7 @@ from fpdf import FPDF
 import time
 import matplotlib.pyplot as plt  # Nueva dependencia para el PDF
 
-# --- FUNCIÓN GENERADORA DE PDF (Modificada para usar Matplotlib) ---
+# --- FUNCIÓN GENERADORA DE PDF (Corrección de rfind) ---
 def generar_pdf(df):
     pdf = FPDF()
     pdf.add_page()
@@ -24,7 +24,7 @@ def generar_pdf(df):
     pdf.ln(5)
 
     try:
-        # 1. Gráfico de Barras para el PDF (Matplotlib)
+        # 1. Gráfico de Barras
         plt.figure(figsize=(5, 3))
         conteo_p = df["País"].value_counts()
         mapa_colores = {"España": "#FFD700", "Alemania": "#8B4513", "Francia": "#87CEEB"}
@@ -34,31 +34,31 @@ def generar_pdf(df):
         
         img_pais = io.BytesIO()
         plt.savefig(img_pais, format='png', bbox_inches='tight')
-        plt.close()
+        img_pais.seek(0) # <--- ESTO ES LO QUE FALTABA: Volver al inicio
 
-        # 2. Gráfico de Pastel para el PDF (Matplotlib)
+        # 2. Gráfico de Pastel
         plt.figure(figsize=(5, 3))
         conteo_r = df["Estado"].value_counts()
-        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
-        # Limpiar etiquetas para Matplotlib (quitar emojis)
         labels_clean = [label.replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "") for label in conteo_r.index]
+        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
         colores_r = [custom_colors.get(label, "gray") for label in conteo_r.index]
         
-        plt.pie(conteo_r.values, labels=labels_clean, autopct='%1.1f%%', colors=colores_r, startangle=140)
+        plt.pie(conteo_r.values, labels=labels_clean, autopct='%1.1f%%', colors=colores_r)
         plt.title("Niveles de Riesgo")
         
         img_pie = io.BytesIO()
         plt.savefig(img_pie, format='png', bbox_inches='tight')
-        plt.close()
+        img_pie.seek(0) # <--- ESTO ES LO QUE FALTABA: Volver al inicio
+        plt.close('all') # Limpiar todos los gráficos para liberar memoria
 
-        # Insertar imágenes en el PDF
-        pdf.image(img_pais, x=10, y=55, w=90)
-        pdf.image(img_pie, x=110, y=55, w=90)
+        # Insertar imágenes usando nombres temporales internos para fpdf
+        pdf.image(img_pais, x=10, y=55, w=90, type='PNG')
+        pdf.image(img_pie, x=110, y=55, w=90, type='PNG')
         pdf.ln(65)
+        
     except Exception as e:
-        pdf.set_font("Arial", 'I', 10)
         pdf.set_text_color(255, 0, 0)
-        pdf.cell(200, 10, txt=f"Nota: No se pudieron generar los graficos ({e})", ln=True)
+        pdf.cell(200, 10, txt=f"Nota: Error visual ({e})", ln=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
