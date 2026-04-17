@@ -5,3 +5,4 @@ plotly
 fpdf
 kaleido==0.1.0post1
 scikit-learn
+
