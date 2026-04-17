@@ -168,38 +168,49 @@ if st.session_state.historial:
     with m3:
         st.metric("Total de Clientes Analizados", len(df_metriz))
 
-    # --- 2. FILA DE GRÁFICOS (Corregida) ---
+   # --- BUSCA ESTA SECCIÓN (FILA DE GRÁFICOS) Y REEMPLÁZALA CON ESTA ---
+    # --- 2. FILA DE GRÁFICOS (Corrección de Colores) ---
     g_col1, g_col2 = st.columns(2)
     
     with g_col1:
         st.markdown("#### 🌎 Distribución por País")
-        # Usamos nombres específicos para evitar el KeyError
         conteo_pais = df_metriz["País"].value_counts().reset_index()
         conteo_pais.columns = ["País", "Cantidad"] 
         
         fig_pais = go.Figure(go.Bar(
             x=conteo_pais["País"], 
             y=conteo_pais["Cantidad"],
-            marker_color='#004a99'
+            marker_color='#004a99' # Azul bancario
         ))
-        fig_pais.update_layout(height=300, margin=dict(t=20, b=20, l=0, r=0))
+        fig_pais.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
         st.plotly_chart(fig_pais, use_container_width=True)
 
     with g_col2:
         st.markdown("#### 📈 Niveles de Riesgo")
-        # Forzamos los nombres de las columnas aquí también
+        # Forzamos los nombres de las columnas para evitar el KeyError
         conteo_estado = df_metriz["Estado"].value_counts().reset_index()
         conteo_estado.columns = ["Nivel", "Total"]
         
+        # --- CORRECCIÓN DE COLORES (Intuitivo) ---
+        # Asignamos colores específicos a cada etiqueta para que no dependa del orden
+        custom_colors = {
+            "🔴 Riesgo Alto": "#e24b4a",  # Rojo Alarma
+            "🟡 Riesgo Medio": "#f5a623", # Amarillo Precaución
+            "🟢 Seguro": "#3fc47a"       # Verde Seguridad
+        }
+        
+        # Obtenemos la lista ordenada de colores según las etiquetas presentes
+        plot_colors = [custom_colors[label] for label in conteo_estado["Nivel"]]
+        
         fig_pie = go.Figure(go.Pie(
-            labels=conteo_estado["Nivel"], # Antes decía "index", por eso fallaba
+            labels=conteo_estado["Nivel"], 
             values=conteo_estado["Total"],
             hole=.4,
-            marker_colors=["#3fc47a", "#f5a623", "#e24b4a"]
+            marker_colors=plot_colors # Usamos la lista de colores corregida
         ))
-        fig_pie.update_layout(height=300, margin=dict(t=20, b=20, l=0, r=0))
+        fig_pie.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
         st.plotly_chart(fig_pie, use_container_width=True)
-    st.divider()
+        st.divider()
 
     # --- 3. TABLA DETALLADA (Se mantiene justo debajo) ---
     st.markdown("#### 📑 Detalle Individual de Clientes")
