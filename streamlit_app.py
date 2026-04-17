@@ -200,7 +200,7 @@ with st.sidebar:
     st.title("Panel de control")
     
     st.subheader("📂 Carga Masiva")
-   uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
     
     # 1. Botón Limpiar Historial (que ya tenías)
     if st.button("Limpiar Historial", use_container_width=True):
