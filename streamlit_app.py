@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import io
 from fpdf import FPDF
 
+# --- FUNCIÓN GENERADORA DE PDF (Corregida para evitar errores de tildes y emojis) ---
 def generar_pdf(df):
     pdf = FPDF()
     pdf.add_page()
@@ -24,26 +25,27 @@ def generar_pdf(df):
 
     # Encabezados de Tabla
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(40, 10, "ID Cliente", 1)
-    pdf.cell(30, 10, "% Riesgo", 1)
-    pdf.cell(120, 10, "Estado y Plan de Accion", 1)
+    pdf.cell(35, 10, "ID Cliente", 1)
+    pdf.cell(25, 10, "% Riesgo", 1)
+    pdf.cell(35, 10, "Estado", 1)
+    pdf.cell(95, 10, "Plan de Accion", 1)
     pdf.ln()
 
     # Datos de los clientes
     pdf.set_font("Arial", '', 9)
     for i, row in df.iterrows():
-        # Limpiamos tildes para evitar errores de codificación latin-1
+        # LIMPIEZA: Quitamos emojis y tildes que rompen el PDF
         id_c = str(row['ID Cliente'])
         riesgo = f"{row['% Riesgo']}%"
-        # Reemplazamos caracteres conflictivos para el PDF básico
-        estado_plan = f"{row['Estado']} - {row['Plan de Acción']}".replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
+        estado_limpio = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
+        plan_limpio = str(row['Plan de Acción']).replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
         
-        pdf.cell(40, 10, id_c, 1)
-        pdf.cell(30, 10, riesgo, 1)
-        pdf.cell(120, 10, estado_plan[:70], 1) # Cortamos si es muy largo
+        pdf.cell(35, 10, id_c, 1)
+        pdf.cell(25, 10, riesgo, 1)
+        pdf.cell(35, 10, estado_limpio, 1)
+        pdf.cell(95, 10, plan_limpio[:65], 1) # Acortamos para que no se desborde
         pdf.ln()
     
-    # Retornamos el PDF como bytes
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
 # 1. Configuración de página
@@ -74,13 +76,9 @@ model = load_model()
 
 # --- FUNCIÓN PROCESADORA ---
 def procesar_datos(df_input):
-    # Limpiar nombres de columnas por si vienen con saltos de línea o espacios
     df_input.columns = df_input.columns.str.replace(r'\r|\n', '', regex=True).str.strip()
-    
-    # Columnas requeridas por el modelo
     required = ['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']
     
-    # Verificar si faltan columnas
     missing = [c for c in required if c not in df_input.columns]
     if missing:
         st.error(f"Faltan columnas en el archivo: {missing}")
@@ -93,7 +91,7 @@ def procesar_datos(df_input):
     for i, prob in enumerate(probs):
         pct = round(prob * 100, 2)
         if prob >= 0.58:
-            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria: Oferta de retención inmediata. Ofrecer promociones.", "#e24b4a"
+            estado, rec, color = "🔴 Riesgo Alto", "Atención prioritaria: Oferta de retención inmediata.", "#e24b4a"
         elif prob >= 0.40:
             estado, rec, color = "🟡 Riesgo Medio", "Seguimiento: Llamar y realizar encuesta de satisfacción.", "#f5a623"
         else:
@@ -113,6 +111,9 @@ def procesar_datos(df_input):
     return resultados
 
 # --- SIDEBAR ---
+if "historial" not in st.session_state:
+    st.session_state.historial = []
+
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png", width=100)
     st.title("Panel de Control")
@@ -125,12 +126,8 @@ with st.sidebar:
 # --- LÓGICA DE CARGA CSV ---
 if uploaded_file is not None:
     try:
-        # Leer el contenido para limpiar posibles saltos de línea raros en los encabezados
         content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
-        # Reemplazar saltos de línea que ocurren dentro de las comillas o mal formateados
         content = content.replace("Inactivo_40_\r\n70", "Inactivo_40_70").replace("Inactivo_40_\n70", "Inactivo_40_70")
-        
-        # Leer con pandas detectando el separador (coma o punto y coma)
         df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
         
         if st.button("🚀 Procesar Archivo CSV"):
@@ -144,9 +141,6 @@ if uploaded_file is not None:
 # --- HEADER ---
 st.title("🏦 Churn Insight Banking")
 st.divider()
-
-if "historial" not in st.session_state:
-    st.session_state.historial = []
 
 # --- ANÁLISIS INDIVIDUAL ---
 st.subheader("📋 Análisis Individual")
@@ -176,7 +170,6 @@ if analyze_btn:
         if res_list:
             res = res_list[0]
             st.session_state.historial.append(res)
-            # Gráfico y Resultado...
             g1, g2 = st.columns([2, 1])
             with g1:
                 fig = go.Figure(go.Indicator(
@@ -186,102 +179,54 @@ if analyze_btn:
             with g2:
                 st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
 
-# --- BUSCA LA SECCIÓN DE TABLA RESUMEN  ---
+# --- RESUMEN Y PANEL DE CONTROL ---
 if st.session_state.historial:
     st.divider()
     st.subheader("📊 Panel de Control y Resumen Ejecutivo")
-    
-    # Creamos un DataFrame con todo el historial para los cálculos
     df_metriz = pd.DataFrame(st.session_state.historial)
     
-    # --- 1. FILA DE MÉTRICAS (Tarjetas) ---
     m1, m2, m3 = st.columns(3)
-    
     with m1:
-        avg_risk = df_metriz["% Riesgo"].mean()
-        st.metric("Tasa de Riesgo Promedio", f"{avg_risk:.2f}%")
-        
+        st.metric("Tasa de Riesgo Promedio", f"{df_metriz['% Riesgo'].mean():.2f}%")
     with m2:
-        # Conteo por categorías basado en los emojis o el texto del estado
         alto = len(df_metriz[df_metriz["% Riesgo"] >= 58])
         medio = len(df_metriz[(df_metriz["% Riesgo"] >= 40) & (df_metriz["% Riesgo"] < 58)])
-        st.metric("Clientes en Riesgo (Alto/Medio)", f"{alto} / {medio}", delta=f"{alto} Críticos", delta_color="inverse")
-        
+        st.metric("Riesgo (Alto/Medio)", f"{alto} / {medio}")
     with m3:
-        st.metric("Total de Clientes Analizados", len(df_metriz))
+        st.metric("Total Analizados", len(df_metriz))
 
-   # --- BUSCA ESTA SECCIÓN (FILA DE GRÁFICOS) Y REEMPLÁZALA CON ESTA ---
-    # --- 2. FILA DE GRÁFICOS (Corrección de Colores) ---
     g_col1, g_col2 = st.columns(2)
-    
     with g_col1:
         st.markdown("#### 🌎 Distribución por País")
         conteo_pais = df_metriz["País"].value_counts().reset_index()
         conteo_pais.columns = ["País", "Cantidad"] 
-        
-        fig_pais = go.Figure(go.Bar(
-            x=conteo_pais["País"], 
-            y=conteo_pais["Cantidad"],
-            marker_color='#004a99' # Azul bancario
-        ))
-        fig_pais.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        fig_pais = go.Figure(go.Bar(x=conteo_pais["País"], y=conteo_pais["Cantidad"], marker_color='#004a99'))
         st.plotly_chart(fig_pais, use_container_width=True)
 
     with g_col2:
         st.markdown("#### 📈 Niveles de Riesgo")
-        # Forzamos los nombres de las columnas para evitar el KeyError
         conteo_estado = df_metriz["Estado"].value_counts().reset_index()
         conteo_estado.columns = ["Nivel", "Total"]
-        
-        # --- CORRECCIÓN DE COLORES (Intuitivo) ---
-        # Asignamos colores específicos a cada etiqueta para que no dependa del orden
-        custom_colors = {
-            "🔴 Riesgo Alto": "#e24b4a",  # Rojo Alarma
-            "🟡 Riesgo Medio": "#f5a623", # Amarillo Precaución
-            "🟢 Seguro": "#3fc47a"       # Verde Seguridad
-        }
-        
-        # Obtenemos la lista ordenada de colores según las etiquetas presentes
+        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
         plot_colors = [custom_colors[label] for label in conteo_estado["Nivel"]]
-        
-        fig_pie = go.Figure(go.Pie(
-            labels=conteo_estado["Nivel"], 
-            values=conteo_estado["Total"],
-            hole=.4,
-            marker_colors=plot_colors # Usamos la lista de colores corregida
-        ))
-        fig_pie.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        fig_pie = go.Figure(go.Pie(labels=conteo_estado["Nivel"], values=conteo_estado["Total"], hole=.4, marker_colors=plot_colors))
         st.plotly_chart(fig_pie, use_container_width=True)
       
-# --- BOTÓN DE PDF (Añádelo aquí) ---
-        st.divider()
-        df_reporte = pd.DataFrame(st.session_state.historial)
-        
-        try:
-            pdf_bytes = generar_pdf(df_reporte)
-            st.download_button(
-                label="📄 Descargar Reporte en PDF",
-                data=pdf_bytes,
-                file_name="Reporte_Churn_AluraBank.pdf",
-                mime="application/pdf",
-            )
-        except Exception as e:
-            st.error(f"Error al generar el reporte: {e}")
+    # --- SECCIÓN DE DESCARGA PDF ---
+    st.divider()
+    try:
+        pdf_bytes = generar_pdf(df_metriz)
+        st.download_button(
+            label="📄 Descargar Reporte en PDF",
+            data=pdf_bytes,
+            file_name="Reporte_Churn_AluraBank.pdf",
+            mime="application/pdf",
+        )
+    except Exception as e:
+        st.error(f"Error al generar el reporte: {e}")
 
-        # --- 3. TABLA DETALLADA (Lo que ya tienes en tu imagen 6310ab) ---
-        st.divider()
-        st.markdown("#### 🗒️ Detalle Individual de Clientes")
-        # Invertimos el historial para ver lo más reciente arriba
-        df_h = pd.DataFrame(st.session_state.historial[::-1])
-        st.dataframe(df_h, use_container_width=True)
-
-    
-    # --- 3. TABLA DETALLADA (Se mantiene justo debajo) ---
-    st.markdown("#### 📑 Detalle Individual de Clientes")
-    # Invertimos el historial para ver lo más reciente arriba
+    # --- TABLA DETALLADA (UNA SOLA VEZ) ---
+    st.divider()
+    st.markdown("#### 🗒️ Detalle Individual de Clientes")
     df_h = pd.DataFrame(st.session_state.historial[::-1])
-    st.dataframe(
-        df_h.drop(columns=['color_hex'], errors='ignore'), 
-        use_container_width=True, 
-        hide_index=True
-    )
+    st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
