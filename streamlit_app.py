@@ -6,17 +6,15 @@ import io
 from fpdf import FPDF
 import time
 
-# --- FUNCIÓN GENERADORA DE PDF (Corregida para evitar errores de tildes y emojis) ---
+# --- FUNCIÓN GENERADORA DE PDF ---
 def generar_pdf(df, fig_pais, fig_pie):
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. TÍTULO ACTUALIZADO
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt="Reporte Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
     
-    # 2. RESUMEN EJECUTIVO
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
     pdf.set_font("Arial", '', 10)
@@ -24,18 +22,14 @@ def generar_pdf(df, fig_pais, fig_pie):
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
     pdf.ln(5)
 
-    # --- CAPTURA DE IMÁGENES (CON CONTROL DE ERRORES) ---
     try:
-        # Esperamos un instante para asegurar el renderizado
         time.sleep(0.5)
         img_pais_bytes = fig_pais.to_image(format="png", engine="kaleido")
         img_pie_bytes = fig_pie.to_image(format="png", engine="kaleido")
         
-        # Insertar Gráfico de Barras
         pdf.image(io.BytesIO(img_pais_bytes), x=10, y=50, w=90)
-        # Insertar Gráfico de Torta
         pdf.image(io.BytesIO(img_pie_bytes), x=110, y=50, w=90)
-        pdf.ln(65) # Espacio para la tabla
+        pdf.ln(65)
     except Exception as e:
         pdf.set_font("Arial", 'I', 10)
         pdf.set_text_color(255, 0, 0)
@@ -43,7 +37,6 @@ def generar_pdf(df, fig_pais, fig_pie):
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
-    # 3. TABLA DE DATOS
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(35, 10, "ID Cliente", 1)
     pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
@@ -53,17 +46,13 @@ def generar_pdf(df, fig_pais, fig_pie):
 
     pdf.set_font("Arial", '', 9)
     for i, row in df.iterrows():
-        # Limpieza profunda de caracteres y tildes
         id_c = str(row['ID Cliente'])
         riesgo = f"{float(row['% Riesgo']):.2f}%"
-        
-        # Quitamos emojis y arreglamos la ñ/tildes
         estado = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
         plan = str(row['Plan de Acción'])
         
-        # Diccionario de limpieza para evitar errores de codificación
         def limpiar_texto(t):
-            return t.replace('ñ', 'n').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
+            return t.replace('ñ', 'n').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
 
         pdf.cell(35, 10, id_c, 1)
         pdf.cell(25, 10, riesgo, 1, 0, 'C')
@@ -71,68 +60,11 @@ def generar_pdf(df, fig_pais, fig_pie):
         pdf.cell(95, 10, limpiar_texto(plan)[:65], 1)
         pdf.ln()
     
-    # IMPORTANTE: Nunca devolver None
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
-    # --- CONTINUACIÓN: INSERTAR LAS IMÁGENES ---
-    # Ahora que ya tienes los 'bytes', los pegas en el PDF
-    pdf.image(io.BytesIO(img_pais_bytes), x=10, y=50, w=90)
-    pdf.image(io.BytesIO(img_pie_bytes), x=110, y=50, w=90)
-    pdf.ln(70) # Espacio para que la tabla empiece abajo de las fotos
-    
-    # 2. RESUMEN EJECUTIVO
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(200, 10, txt=f"Total de clientes analizados: {len(df)}", ln=True)
-    pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
-    pdf.ln(5)
-
-    # --- NUEVA SECCIÓN: GRÁFICOS ---
-    # Guardamos los gráficos como imágenes en memoria (bytes)
-    img_pais_bytes = fig_pais.to_image(format="png")
-    img_pie_bytes = fig_pie.to_image(format="png")
-    
-    # Insertar Gráfico de Barras (Distribución por País)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(200, 10, txt="Distribucion por Pais:", ln=True)
-    pdf.image(io.BytesIO(img_pais_bytes), x=10, w=90) 
-    
-    # Insertar Gráfico de Torta (Niveles de Riesgo)
-    # Lo colocamos al lado del anterior o debajo
-    pdf.set_y(pdf.get_y() - 50) # Ajuste de posición para que queden alineados
-    pdf.set_x(110)
-    pdf.cell(90, 10, txt="Niveles de Riesgo:", ln=True)
-    pdf.image(io.BytesIO(img_pie_bytes), x=110, y=pdf.get_y(), w=90)
-    pdf.ln(60) # Espacio para que la tabla no se encime con las fotos
-
-    # 3. TABLA DE DATOS (Con el arreglo de los decimales)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(35, 10, "ID Cliente", 1)
-    pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
-    pdf.cell(35, 10, "Estado", 1)
-    pdf.cell(95, 10, "Plan de Accion", 1)
-    pdf.ln()
-
-    pdf.set_font("Arial", '', 9)
-    for i, row in df.iterrows():
-        # Limpieza de emojis y tildes para evitar error latin-1
-        id_c = str(row['ID Cliente'])
-        riesgo = f"{float(row['% Riesgo']):.2f}%"
-        estado_limpio = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
-        plan_limpio = str(row['Plan de Acción']).replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
-        
-        pdf.cell(35, 10, id_c, 1)
-        pdf.cell(25, 10, riesgo, 1, 0, 'C')
-        pdf.cell(35, 10, estado_limpio, 1)
-        pdf.cell(95, 10, plan_limpio[:65], 1)
-        pdf.ln()
-    
-    return pdf.output(dest='S').encode('latin-1', errors='replace')
 # 1. Configuración de página
 st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
-# --- CSS PERSONALIZADO ---
 st.markdown("""
     <style>
     .main { background-color: #f5f7f9; }
@@ -155,7 +87,6 @@ def load_model():
 
 model = load_model()
 
-# --- FUNCIÓN PROCESADORA ---
 def procesar_datos(df_input):
     df_input.columns = df_input.columns.str.replace(r'\r|\n', '', regex=True).str.strip()
     required = ['Age', 'NumOfProducts', 'Inactivo_40_70', 'Products_Risk_Flag', 'Country_Risk_Flag']
@@ -191,136 +122,25 @@ def procesar_datos(df_input):
         })
     return resultados
 
-# --- SIDEBAR ---
 if "historial" not in st.session_state:
     st.session_state.historial = []
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png") # El logo que ya usas
+    st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png")
     st.title("Panel de control")
     
     st.subheader("📂 Carga Masiva")
     uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
     
-    # 1. Botón Limpiar Historial (que ya tenías)
     if st.button("Limpiar Historial", use_container_width=True):
         st.session_state.historial = []
         st.rerun()
 
-  # --- LOGICA DE CARGA CSV (UNIFICADA) ---
     if uploaded_file is not None:
         try:
-            # Leemos el archivo una sola vez
             content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
             content = content.replace("Inactivo_40_\r\n70", "Inactivo_40_70").replace("Inactivo_40_\n70", "Inactivo_40_70")
-            
-            # Usamos io.StringIO porque ya leímos el contenido arriba
-            import io 
             df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
 
             if st.button("🚀 Procesar Archivo CSV", use_container_width=True):
                 nuevos = procesar_datos(df_upload)
-                if nuevos:
-                    st.session_state.historial.extend(nuevos)
-                    st.success(f"✅ {len(nuevos)} clientes procesados.")
-                    st.rerun() 
-        except Exception as e:
-            st.error(f"Error al leer el archivo: {e}")
-# --- HEADER ---
-st.title("🏦 Churn Insight Banking")
-st.divider()
-
-# --- ANÁLISIS INDIVIDUAL ---
-st.subheader("📋 Análisis Individual")
-with st.container():
-    client_id = st.text_input("ID del Cliente", placeholder="Ej: CLI-001")
-    col1, col2 = st.columns(2)
-    with col1:
-        age = st.slider("Edad", 18, 90, 40)
-        num_p = st.selectbox("Productos", [1, 2, 3, 4])
-    with col2:
-        inactivo = st.selectbox("Actividad", [0, 1], format_func=lambda x: "Inactivo" if x==1 else "Activo")
-        pais = st.selectbox("País", ["Francia", "Alemania", "España"])
-        c_risk = {"Francia": 0, "Alemania": 1, "España": 2}[pais]
-
-    analyze_btn = st.button("🔍 Analizar Cliente")
-
-if analyze_btn:
-    if not client_id:
-        st.error("Ingrese un ID.")
-    elif any(item.get('ID Cliente') == client_id for item in st.session_state.historial):
-        st.error("ID duplicado.")
-    else:
-        df_m = pd.DataFrame([{'ID Cliente': client_id, 'Age': age, 'NumOfProducts': num_p, 
-                             'Inactivo_40_70': inactivo, 'Products_Risk_Flag': 0, 
-                             'Country_Risk_Flag': c_risk, 'Pais_Nombre': pais}])
-        res_list = procesar_datos(df_m)
-        if res_list:
-            res = res_list[0]
-            st.session_state.historial.append(res)
-            g1, g2 = st.columns([2, 1])
-            with g1:
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number", value=res['% Riesgo'],
-                    gauge={"axis": {"range": [0, 100]}, "bar": {"color": res['color_hex']}}))
-                st.plotly_chart(fig, use_container_width=True)
-            with g2:
-                st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
-
-# --- RESUMEN Y PANEL DE CONTROL ---
-if st.session_state.historial:
-    st.divider()
-    st.subheader("📊 Panel de Control y Resumen Ejecutivo")
-    df_metriz = pd.DataFrame(st.session_state.historial)
-    
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.metric("Tasa de Riesgo Promedio", f"{df_metriz['% Riesgo'].mean():.2f}%")
-    with m2:
-        alto = len(df_metriz[df_metriz["% Riesgo"] >= 58])
-        medio = len(df_metriz[(df_metriz["% Riesgo"] >= 40) & (df_metriz["% Riesgo"] < 58)])
-        st.metric("Riesgo (Alto/Medio)", f"{alto} / {medio}")
-    with m3:
-        st.metric("Total Analizados", len(df_metriz))
-
-    g_col1, g_col2 = st.columns(2)
-    with g_col1:
-        st.markdown("#### 🌎 Distribución por País")
-        conteo_pais = df_metriz["País"].value_counts().reset_index()
-        conteo_pais.columns = ["País", "Cantidad"] 
-        fig_pais = go.Figure(go.Bar(x=conteo_pais["País"], y=conteo_pais["Cantidad"], marker_color='#004a99'))
-        st.plotly_chart(fig_pais, use_container_width=True)
-
-    with g_col2:
-        st.markdown("#### 📈 Niveles de Riesgo")
-        conteo_estado = df_metriz["Estado"].value_counts().reset_index()
-        conteo_estado.columns = ["Nivel", "Total"]
-        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
-        plot_colors = [custom_colors[label] for label in conteo_estado["Nivel"]]
-        fig_pie = go.Figure(go.Pie(labels=conteo_estado["Nivel"], values=conteo_estado["Total"], hole=.4, marker_colors=plot_colors))
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    
-   # --- SECCIÓN DE DESCARGA PDF ---
-if st.session_state.historial:
-    # Creamos el DataFrame que usará el PDF
-    df_metriz = pd.DataFrame(st.session_state.historial)
-    
-    try:
-        # Llamamos a la función pasando el DF y los objetos de los gráficos
-        pdf_bytes = generar_pdf(df_metriz, fig_pais, fig_pie)
-        
-        st.download_button(
-            label="📄 Descargar Reporte en PDF",
-            data=pdf_bytes,
-            file_name="Reporte_Churn_Insight.pdf",
-            mime="application/pdf",
-        )
-    except Exception as e:
-        st.error(f"Error al generar el reporte: {e}. Revisa si 'kaleido' está instalado.")
-
-    # --- TABLA DETALLADA (UNA SOLA VEZ) ---
-    st.divider()
-    st.markdown("#### 🗒️ Detalle Individual de Clientes")
-    df_h = pd.DataFrame(st.session_state.historial[::-1])
-    st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
