@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import io
 from fpdf import FPDF
+import time
 
 # --- FUNCIÓN GENERADORA DE PDF (Corregida para evitar errores de tildes y emojis) ---
 def generar_pdf(df, fig_pais, fig_pie):
@@ -14,6 +15,22 @@ def generar_pdf(df, fig_pais, fig_pie):
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt="Reporte Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
+
+    # Le damos tiempo al motor Kaleido para procesar los gráficos de Plotly
+    time.sleep(0.5) 
+    try:
+        img_pais_bytes = fig_pais.to_image(format="png", engine="kaleido")
+        img_pie_bytes = fig_pie.to_image(format="png", engine="kaleido")
+    except Exception as e:
+        # Si falla, el PDF seguirá pero sin fotos para evitar que la app se caiga
+        print(f"Error capturando imágenes: {e}")
+        return None 
+
+    # --- CONTINUACIÓN: INSERTAR LAS IMÁGENES ---
+    # Ahora que ya tienes los 'bytes', los pegas en el PDF
+    pdf.image(io.BytesIO(img_pais_bytes), x=10, y=50, w=90)
+    pdf.image(io.BytesIO(img_pie_bytes), x=110, y=50, w=90)
+    pdf.ln(70) # Espacio para que la tabla empiece abajo de las fotos
     
     # 2. RESUMEN EJECUTIVO
     pdf.set_font("Arial", 'B', 12)
