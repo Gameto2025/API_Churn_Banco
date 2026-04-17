@@ -196,7 +196,7 @@ if "historial" not in st.session_state:
     st.session_state.historial = []
 
 with st.sidebar:
-    st.image("tu_logo.png", width=150) # El logo que ya usas
+    st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png") # El logo que ya usas
     st.title("Panel de control")
     
     st.subheader("📂 Carga Masiva")
