@@ -6,16 +6,16 @@ import io
 from fpdf import FPDF
 
 # --- FUNCIÓN GENERADORA DE PDF (Corregida para evitar errores de tildes y emojis) ---
-def generar_pdf(df):
+def generar_pdf(df, fig_pais, fig_pie):
     pdf = FPDF()
     pdf.add_page()
     
-    # Título del Reporte
+    # 1. TÍTULO ACTUALIZADO
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Reporte de Riesgo de Churn Insight Bank", ln=True, align='C')
+    pdf.cell(200, 10, txt="Reporte Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
     
-    # Resumen Ejecutivo
+    # 2. RESUMEN EJECUTIVO
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
     pdf.set_font("Arial", '', 10)
@@ -23,31 +23,47 @@ def generar_pdf(df):
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
     pdf.ln(5)
 
-    # Encabezados de Tabla
+    # --- NUEVA SECCIÓN: GRÁFICOS ---
+    # Guardamos los gráficos como imágenes en memoria (bytes)
+    img_pais_bytes = fig_pais.to_image(format="png")
+    img_pie_bytes = fig_pie.to_image(format="png")
+    
+    # Insertar Gráfico de Barras (Distribución por País)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(200, 10, txt="Distribucion por Pais:", ln=True)
+    pdf.image(io.BytesIO(img_pais_bytes), x=10, w=90) 
+    
+    # Insertar Gráfico de Torta (Niveles de Riesgo)
+    # Lo colocamos al lado del anterior o debajo
+    pdf.set_y(pdf.get_y() - 50) # Ajuste de posición para que queden alineados
+    pdf.set_x(110)
+    pdf.cell(90, 10, txt="Niveles de Riesgo:", ln=True)
+    pdf.image(io.BytesIO(img_pie_bytes), x=110, y=pdf.get_y(), w=90)
+    pdf.ln(60) # Espacio para que la tabla no se encime con las fotos
+
+    # 3. TABLA DE DATOS (Con el arreglo de los decimales)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(35, 10, "ID Cliente", 1)
-    pdf.cell(25, 10, "% Riesgo", 1)
+    pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
     pdf.cell(35, 10, "Estado", 1)
     pdf.cell(95, 10, "Plan de Accion", 1)
     pdf.ln()
 
-    # Datos de los clientes
     pdf.set_font("Arial", '', 9)
     for i, row in df.iterrows():
-        # LIMPIEZA: Quitamos emojis y tildes que rompen el PDF
+        # Limpieza de emojis y tildes para evitar error latin-1
         id_c = str(row['ID Cliente'])
         riesgo = f"{float(row['% Riesgo']):.2f}%"
         estado_limpio = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
         plan_limpio = str(row['Plan de Acción']).replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
         
         pdf.cell(35, 10, id_c, 1)
-        pdf.cell(25, 10, riesgo, 1)
+        pdf.cell(25, 10, riesgo, 1, 0, 'C')
         pdf.cell(35, 10, estado_limpio, 1)
-        pdf.cell(95, 10, plan_limpio[:65], 1) # Acortamos para que no se desborde
+        pdf.cell(95, 10, plan_limpio[:65], 1)
         pdf.ln()
     
     return pdf.output(dest='S').encode('latin-1', errors='replace')
-
 # 1. Configuración de página
 st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
 
@@ -211,19 +227,25 @@ if st.session_state.historial:
         plot_colors = [custom_colors[label] for label in conteo_estado["Nivel"]]
         fig_pie = go.Figure(go.Pie(labels=conteo_estado["Nivel"], values=conteo_estado["Total"], hole=.4, marker_colors=plot_colors))
         st.plotly_chart(fig_pie, use_container_width=True)
-      
-    # --- SECCIÓN DE DESCARGA PDF ---
-    st.divider()
+
+    
+   # --- SECCIÓN DE DESCARGA PDF ---
+if st.session_state.historial:
+    # Creamos el DataFrame que usará el PDF
+    df_metriz = pd.DataFrame(st.session_state.historial)
+    
     try:
-        pdf_bytes = generar_pdf(df_metriz)
+        # Llamamos a la función pasando el DF y los objetos de los gráficos
+        pdf_bytes = generar_pdf(df_metriz, fig_pais, fig_pie)
+        
         st.download_button(
             label="📄 Descargar Reporte en PDF",
             data=pdf_bytes,
-            file_name="Reporte_Churn_AluraBank.pdf",
+            file_name="Reporte_Churn_Insight.pdf",
             mime="application/pdf",
         )
     except Exception as e:
-        st.error(f"Error al generar el reporte: {e}")
+        st.error(f"Error al generar el reporte: {e}. Revisa si 'kaleido' está instalado.")
 
     # --- TABLA DETALLADA (UNA SOLA VEZ) ---
     st.divider()
