@@ -3,7 +3,7 @@ pandas
 joblib
 plotly
 fpdf
-kaleido==1.0.0
+kaleido
 imbalanced-learn
 xgboost
 scikit-learn==1.6.1
