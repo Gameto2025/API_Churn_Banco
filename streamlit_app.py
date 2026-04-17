@@ -12,7 +12,7 @@ def generar_pdf(df):
     
     # Título del Reporte
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Reporte de Riesgo de Churn - Alura Bank", ln=True, align='C')
+    pdf.cell(200, 10, txt="Reporte de Riesgo de Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
     
     # Resumen Ejecutivo
