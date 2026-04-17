@@ -24,7 +24,7 @@ def generar_pdf(df):
     pdf.set_font("Arial", '', 10)
     pdf.cell(200, 10, txt=f"Total de clientes analizados: {len(df)}", ln=True)
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
-    pdf.ln(15)
+    pdf.ln(20)
 
     # Generación de Gráficos
     try:
@@ -54,10 +54,13 @@ def generar_pdf(df):
             plt.close()
 
             # Insertar en PDF desde la ruta del archivo temporal
-            pdf.image(tmp_pais.name, x=10, y=55, w=90)
-            pdf.image(tmp_pie.name, x=110, y=55, w=90)
+            pdf.image(tmp_pais.name, x=10, y=75, w=90)
+            pdf.image(tmp_pie.name, x=110, y=75, w=90)
             pdf.ln(65)
-
+            # Bajamos el "cursor" del PDF para que la tabla empiece abajo
+            pdf.set_y(150) 
+            pdf.ln(5)
+                 
             # Limpiar archivos temporales del sistema
             tmp_pais_path, tmp_pie_path = tmp_pais.name, tmp_pie.name
         
@@ -73,6 +76,8 @@ def generar_pdf(df):
     # Tabla de Datos
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(35, 10, "ID Cliente", 1)
+
+    
     pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
     pdf.cell(35, 10, "Estado", 1)
     pdf.cell(95, 10, "Plan de Accion", 1)
