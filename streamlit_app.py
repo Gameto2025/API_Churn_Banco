@@ -196,13 +196,33 @@ if "historial" not in st.session_state:
     st.session_state.historial = []
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2830/2830284.png", width=100)
-    st.title("Panel de Control")
-    st.subheader("📁 Carga Masiva")
-    uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
-    if st.button("Limpiar Historial"):
+    st.image("tu_logo.png", width=150) # El logo que ya usas
+    st.title("Panel de control")
+    
+    st.subheader("📂 Carga Masiva")
+    archivo_subido = st.file_uploader("Subir archivo CSV", type=["csv"])
+    
+    # 1. Botón Limpiar Historial (que ya tenías)
+    if st.button("Limpiar Historial", use_container_width=True):
         st.session_state.historial = []
         st.rerun()
+
+    # 2. Botón Procesar (El código que consultaste)
+    if archivo_subido is not None:
+        try:
+            # Leemos el archivo subido
+            df_upload = pd.read_csv(archivo_subido)
+            
+            # Colocamos el botón de procesar
+            if st.button("🚀 Procesar Archivo CSV", use_container_width=True):
+                nuevos = procesar_datos(df_upload)
+                if nuevos:
+                    st.session_state.historial.extend(nuevos)
+                    st.success(f"✅ {len(nuevos)} clientes procesados.")
+                    # Opcional: st.rerun() para actualizar las gráficas de inmediato
+        
+        except Exception as e:
+            st.error(f"Error al leer el archivo: {e}")
 
 # --- LÓGICA DE CARGA CSV ---
 if uploaded_file is not None:
