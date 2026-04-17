@@ -36,7 +36,7 @@ def generar_pdf(df):
     for i, row in df.iterrows():
         # LIMPIEZA: Quitamos emojis y tildes que rompen el PDF
         id_c = str(row['ID Cliente'])
-        riesgo = f"{row['% Riesgo']}%"
+        riesgo = f"{float(row['% Riesgo']):.2f}%"
         estado_limpio = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
         plan_limpio = str(row['Plan de Acción']).replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
         
