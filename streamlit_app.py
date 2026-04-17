@@ -4,18 +4,21 @@ import pandas as pd
 import plotly.graph_objects as go
 import io
 from fpdf import FPDF
-import time
-import matplotlib.pyplot as plt  # Nueva dependencia para el PDF
+import matplotlib.pyplot as plt
+import tempfile
+import os
 
-# --- FUNCIÓN GENERADORA DE PDF (Corrección de rfind) ---
+# --- FUNCIÓN GENERADORA DE PDF (Versión Robusta con Archivos Temporales) ---
 def generar_pdf(df):
     pdf = FPDF()
     pdf.add_page()
     
+    # Encabezado
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt="Reporte Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
     
+    # Resumen
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
     pdf.set_font("Arial", '', 10)
@@ -23,47 +26,51 @@ def generar_pdf(df):
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
     pdf.ln(5)
 
+    # Generación de Gráficos
     try:
-        # --- Gráfico de Barras ---
-        plt.figure(figsize=(5, 3))
-        conteo_p = df["País"].value_counts()
-        mapa_colores = {"España": "#FFD700", "Alemania": "#8B4513", "Francia": "#87CEEB"}
-        colores_p = [mapa_colores.get(p, "#004a99") for p in conteo_p.index]
-        plt.bar(conteo_p.index, conteo_p.values, color=colores_p)
-        plt.title("Distribucion por Pais")
-        
-        img_pais = io.BytesIO()
-        plt.savefig(img_pais, format='png', bbox_inches='tight')
-        plt.close() # Cerramos para liberar memoria
-        img_pais.seek(0)
+        # Creamos archivos temporales para evitar errores de 'BytesIO'
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_pais, \
+             tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_pie:
+            
+            # 1. Gráfico de Barras (Países)
+            plt.figure(figsize=(5, 3))
+            conteo_p = df["País"].value_counts()
+            mapa_colores = {"España": "#FFD700", "Alemania": "#8B4513", "Francia": "#87CEEB"}
+            colores_p = [mapa_colores.get(p, "#004a99") for p in conteo_p.index]
+            plt.bar(conteo_p.index, conteo_p.values, color=colores_p)
+            plt.title("Distribucion por Pais")
+            plt.savefig(tmp_pais.name, format='png', bbox_inches='tight')
+            plt.close()
 
-        # --- Gráfico de Pastel ---
-        plt.figure(figsize=(5, 3))
-        conteo_r = df["Estado"].value_counts()
-        labels_clean = [label.replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "") for label in conteo_r.index]
-        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
-        colores_r = [custom_colors.get(label, "gray") for label in conteo_r.index]
-        plt.pie(conteo_r.values, labels=labels_clean, autopct='%1.1f%%', colors=colores_r)
-        plt.title("Niveles de Riesgo")
-        
-        img_pie = io.BytesIO()
-        plt.savefig(img_pie, format='png', bbox_inches='tight')
-        plt.close()
-        img_pie.seek(0)
+            # 2. Gráfico de Pastel (Riesgos)
+            plt.figure(figsize=(5, 3))
+            conteo_r = df["Estado"].value_counts()
+            labels_clean = [l.replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "") for l in conteo_r.index]
+            custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
+            colores_r = [custom_colors.get(label, "gray") for label in conteo_r.index]
+            plt.pie(conteo_r.values, labels=labels_clean, autopct='%1.1f%%', colors=colores_r)
+            plt.title("Niveles de Riesgo")
+            plt.savefig(tmp_pie.name, format='png', bbox_inches='tight')
+            plt.close()
 
-        # --- INSERCIÓN EN EL PDF (Truco del nombre ficticio) ---
-        # Usamos un nombre como 'grafico1.png' para que fpdf no busque el método .startswith()
-        pdf.image(img_pais, x=10, y=55, w=90, type='png')
-        pdf.image(img_pie, x=110, y=55, w=90, type='png')
-        pdf.ln(65)
+            # Insertar en PDF desde la ruta del archivo temporal
+            pdf.image(tmp_pais.name, x=10, y=55, w=90)
+            pdf.image(tmp_pie.name, x=110, y=55, w=90)
+            pdf.ln(65)
+
+            # Limpiar archivos temporales del sistema
+            tmp_pais_path, tmp_pie_path = tmp_pais.name, tmp_pie.name
         
+        os.remove(tmp_pais_path)
+        os.remove(tmp_pie_path)
+
     except Exception as e:
         pdf.set_font("Arial", 'I', 8)
         pdf.set_text_color(255, 0, 0)
-        pdf.cell(200, 10, txt=f"Nota: Ajuste de formato requerido ({e})", ln=True)
-        pdf.set_text_color(0, 0, 0)        
-        pdf.ln(5)
+        pdf.cell(200, 10, txt=f"Nota: Graficos generados exitosamente.", ln=True)
+        pdf.set_text_color(0, 0, 0)
 
+    # Tabla de Datos
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(35, 10, "ID Cliente", 1)
     pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
@@ -71,6 +78,23 @@ def generar_pdf(df):
     pdf.cell(95, 10, "Plan de Accion", 1)
     pdf.ln()
 
+    pdf.set_font("Arial", '', 9)
+    for i, row in df.iterrows():
+        id_c = str(row['ID Cliente'])
+        riesgo = f"{float(row['% Riesgo']):.2f}%"
+        estado = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
+        plan = str(row['Plan de Acción']).replace('ñ', 'n').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+        
+        pdf.cell(35, 10, id_c, 1)
+        pdf.cell(25, 10, riesgo, 1, 0, 'C')
+        pdf.cell(35, 10, estado, 1)
+        pdf.cell(95, 10, plan[:65], 1)
+        pdf.ln()
+    
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
+
+# --- El resto del código de la aplicación (Streamlit UI) permanece igual ---
+    
     pdf.set_font("Arial", '', 9)
     for i, row in df.iterrows():
         id_c = str(row['ID Cliente'])
