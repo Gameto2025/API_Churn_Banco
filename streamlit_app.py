@@ -24,7 +24,7 @@ def generar_pdf(df):
     pdf.set_font("Arial", '', 10)
     pdf.cell(200, 10, txt=f"Total de clientes analizados: {len(df)}", ln=True)
     pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
-    pdf.ln(5)
+    pdf.ln(15)
 
     # Generación de Gráficos
     try:
