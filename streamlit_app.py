@@ -199,7 +199,26 @@ with st.container():
         c_risk = {"Francia": 0, "Alemania": 1, "España": 2}[pais]
 
     if st.button("🔍 Analizar Cliente"):
-        if client_id:
+        if not client_id:
+            st.error("⚠️ Ingrese un ID de cliente.")
+        # ESTA ES LA PARTE QUE DEBES INSERTAR:
+        elif any(item.get('ID Cliente') == client_id for item in st.session_state.historial):
+            st.error(f"❌ El ID '{client_id}' ya existe en el historial.")
+        else:
+            # Si pasa las validaciones, procede a crear el DataFrame y procesar
+            df_m = pd.DataFrame([{
+                'ID Cliente': client_id, 
+                'Age': age, 
+                'NumOfProducts': num_p,
+                'Inactivo_40_70': inactivo, 
+                'Products_Risk_Flag': 0,
+                'Country_Risk_Flag': c_risk, 
+                'Pais_Nombre': pais
+            }])
+            res_list = procesar_datos(df_m)
+            if res_list:
+                st.session_state.historial.append(res_list[0])
+                st.rerun()
             df_m = pd.DataFrame([{'ID Cliente': client_id, 'Age': age, 'NumOfProducts': num_p, 
                                  'Inactivo_40_70': inactivo, 'Products_Risk_Flag': 0, 
                                  'Country_Risk_Flag': c_risk, 'Pais_Nombre': pais}])
