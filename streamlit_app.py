@@ -207,38 +207,25 @@ with st.sidebar:
         st.session_state.historial = []
         st.rerun()
 
-    # 2. Botón Procesar (El código que consultaste)
+  # --- LOGICA DE CARGA CSV (UNIFICADA) ---
     if uploaded_file is not None:
         try:
-            # Leemos el archivo subido
-            df_upload = pd.read_csv(archivo_subido)
+            # Leemos el archivo una sola vez
+            content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
+            content = content.replace("Inactivo_40_\r\n70", "Inactivo_40_70").replace("Inactivo_40_\n70", "Inactivo_40_70")
             
-            # Colocamos el botón de procesar
+            # Usamos io.StringIO porque ya leímos el contenido arriba
+            import io 
+            df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
+
             if st.button("🚀 Procesar Archivo CSV", use_container_width=True):
                 nuevos = procesar_datos(df_upload)
                 if nuevos:
                     st.session_state.historial.extend(nuevos)
                     st.success(f"✅ {len(nuevos)} clientes procesados.")
-                    # Opcional: st.rerun() para actualizar las gráficas de inmediato
-        
+                    st.rerun() 
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
-
-# --- LÓGICA DE CARGA CSV ---
-if uploaded_file is not None:
-    try:
-        content = uploaded_file.getvalue().decode('utf-8', errors='ignore')
-        content = content.replace("Inactivo_40_\r\n70", "Inactivo_40_70").replace("Inactivo_40_\n70", "Inactivo_40_70")
-        df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
-        
-        if st.button("🚀 Procesar Archivo CSV"):
-            nuevos = procesar_datos(df_upload)
-            if nuevos:
-                st.session_state.historial.extend(nuevos)
-                st.success(f"✅ {len(nuevos)} clientes procesados.")
-    except Exception as e:
-        st.error(f"Error al leer el archivo: {e}")
-
 # --- HEADER ---
 st.title("🏦 Churn Insight Banking")
 st.divider()
