@@ -18,6 +18,8 @@ def generar_pdf(df, fig_pais, fig_pie):
 
     # Le damos tiempo al motor Kaleido para procesar los gráficos de Plotly
     time.sleep(0.5) 
+    img_pais_bytes = None # Inicializamos
+    img_pie_bytes = None  # Inicializamos
     try:
         img_pais_bytes = fig_pais.to_image(format="png", engine="kaleido")
         img_pie_bytes = fig_pie.to_image(format="png", engine="kaleido")
