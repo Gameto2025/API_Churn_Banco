@@ -15,18 +15,64 @@ def generar_pdf(df, fig_pais, fig_pie):
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt="Reporte Churn Insight Bank", ln=True, align='C')
     pdf.ln(10)
+    
+    # 2. RESUMEN EJECUTIVO
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(200, 10, txt=f"Total de clientes analizados: {len(df)}", ln=True)
+    pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
+    pdf.ln(5)
 
-    # Le damos tiempo al motor Kaleido para procesar los gráficos de Plotly
-    time.sleep(0.5) 
-    img_pais_bytes = None # Inicializamos
-    img_pie_bytes = None  # Inicializamos
+    # --- CAPTURA DE IMÁGENES (CON CONTROL DE ERRORES) ---
     try:
+        # Esperamos un instante para asegurar el renderizado
+        time.sleep(0.5)
         img_pais_bytes = fig_pais.to_image(format="png", engine="kaleido")
         img_pie_bytes = fig_pie.to_image(format="png", engine="kaleido")
+        
+        # Insertar Gráfico de Barras
+        pdf.image(io.BytesIO(img_pais_bytes), x=10, y=50, w=90)
+        # Insertar Gráfico de Torta
+        pdf.image(io.BytesIO(img_pie_bytes), x=110, y=50, w=90)
+        pdf.ln(65) # Espacio para la tabla
     except Exception as e:
-        # Si falla, el PDF seguirá pero sin fotos para evitar que la app se caiga
-        print(f"Error capturando imágenes: {e}")
-        return None 
+        pdf.set_font("Arial", 'I', 10)
+        pdf.set_text_color(255, 0, 0)
+        pdf.cell(200, 10, txt="Nota: Los graficos no pudieron incluirse en este reporte.", ln=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(5)
+
+    # 3. TABLA DE DATOS
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(35, 10, "ID Cliente", 1)
+    pdf.cell(25, 10, "% Riesgo", 1, 0, 'C')
+    pdf.cell(35, 10, "Estado", 1)
+    pdf.cell(95, 10, "Plan de Accion", 1)
+    pdf.ln()
+
+    pdf.set_font("Arial", '', 9)
+    for i, row in df.iterrows():
+        # Limpieza profunda de caracteres y tildes
+        id_c = str(row['ID Cliente'])
+        riesgo = f"{float(row['% Riesgo']):.2f}%"
+        
+        # Quitamos emojis y arreglamos la ñ/tildes
+        estado = str(row['Estado']).replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "")
+        plan = str(row['Plan de Acción'])
+        
+        # Diccionario de limpieza para evitar errores de codificación
+        def limpiar_texto(t):
+            return t.replace('ñ', 'n').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
+
+        pdf.cell(35, 10, id_c, 1)
+        pdf.cell(25, 10, riesgo, 1, 0, 'C')
+        pdf.cell(35, 10, limpiar_texto(estado), 1)
+        pdf.cell(95, 10, limpiar_texto(plan)[:65], 1)
+        pdf.ln()
+    
+    # IMPORTANTE: Nunca devolver None
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
 
     # --- CONTINUACIÓN: INSERTAR LAS IMÁGENES ---
     # Ahora que ya tienes los 'bytes', los pegas en el PDF
