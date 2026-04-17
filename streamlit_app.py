@@ -3,6 +3,48 @@ import joblib
 import pandas as pd
 import plotly.graph_objects as go
 import io
+from fpdf import FPDF
+
+def generar_pdf(df):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Título del Reporte
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="Reporte de Riesgo de Churn - Alura Bank", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Resumen Ejecutivo
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="Resumen de la Sesion:", ln=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(200, 10, txt=f"Total de clientes analizados: {len(df)}", ln=True)
+    pdf.cell(200, 10, txt=f"Riesgo promedio: {df['% Riesgo'].mean():.2f}%", ln=True)
+    pdf.ln(5)
+
+    # Encabezados de Tabla
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(40, 10, "ID Cliente", 1)
+    pdf.cell(30, 10, "% Riesgo", 1)
+    pdf.cell(120, 10, "Estado y Plan de Accion", 1)
+    pdf.ln()
+
+    # Datos de los clientes
+    pdf.set_font("Arial", '', 9)
+    for i, row in df.iterrows():
+        # Limpiamos tildes para evitar errores de codificación latin-1
+        id_c = str(row['ID Cliente'])
+        riesgo = f"{row['% Riesgo']}%"
+        # Reemplazamos caracteres conflictivos para el PDF básico
+        estado_plan = f"{row['Estado']} - {row['Plan de Acción']}".replace('ó', 'o').replace('í', 'i').replace('á', 'a').replace('é', 'e').replace('ú', 'u')
+        
+        pdf.cell(40, 10, id_c, 1)
+        pdf.cell(30, 10, riesgo, 1)
+        pdf.cell(120, 10, estado_plan[:70], 1) # Cortamos si es muy largo
+        pdf.ln()
+    
+    # Retornamos el PDF como bytes
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
 
 # 1. Configuración de página
 st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout="wide")
@@ -144,7 +186,7 @@ if analyze_btn:
             with g2:
                 st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
 
-# --- BUSCA LA SECCIÓN DE TABLA RESUMEN Y REEMPLÁZALA CON ESTA ---
+# --- BUSCA LA SECCIÓN DE TABLA RESUMEN  ---
 if st.session_state.historial:
     st.divider()
     st.subheader("📊 Panel de Control y Resumen Ejecutivo")
@@ -210,8 +252,30 @@ if st.session_state.historial:
         ))
         fig_pie.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
         st.plotly_chart(fig_pie, use_container_width=True)
+      
+# --- BOTÓN DE PDF (Añádelo aquí) ---
         st.divider()
+        df_reporte = pd.DataFrame(st.session_state.historial)
+        
+        try:
+            pdf_bytes = generar_pdf(df_reporte)
+            st.download_button(
+                label="📄 Descargar Reporte en PDF",
+                data=pdf_bytes,
+                file_name="Reporte_Churn_AluraBank.pdf",
+                mime="application/pdf",
+            )
+        except Exception as e:
+            st.error(f"Error al generar el reporte: {e}")
 
+        # --- 3. TABLA DETALLADA (Lo que ya tienes en tu imagen 6310ab) ---
+        st.divider()
+        st.markdown("#### 🗒️ Detalle Individual de Clientes")
+        # Invertimos el historial para ver lo más reciente arriba
+        df_h = pd.DataFrame(st.session_state.historial[::-1])
+        st.dataframe(df_h, use_container_width=True)
+
+    
     # --- 3. TABLA DETALLADA (Se mantiene justo debajo) ---
     st.markdown("#### 📑 Detalle Individual de Clientes")
     # Invertimos el historial para ver lo más reciente arriba
