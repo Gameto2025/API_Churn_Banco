@@ -3,6 +3,6 @@ pandas
 joblib
 plotly
 fpdf
-kaleido==0.1.0post1
+kaleido==1.0.0
 scikit-learn
 
