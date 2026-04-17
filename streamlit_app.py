@@ -5,9 +5,10 @@ import plotly.graph_objects as go
 import io
 from fpdf import FPDF
 import time
+import matplotlib.pyplot as plt  # Nueva dependencia para el PDF
 
-# --- FUNCIÓN GENERADORA DE PDF ---
-def generar_pdf(df, fig_pais, fig_pie):
+# --- FUNCIÓN GENERADORA DE PDF (Modificada para usar Matplotlib) ---
+def generar_pdf(df):
     pdf = FPDF()
     pdf.add_page()
     
@@ -23,17 +24,41 @@ def generar_pdf(df, fig_pais, fig_pie):
     pdf.ln(5)
 
     try:
-        time.sleep(0.5)
-        img_pais_bytes = fig_pais.to_image(format="png", engine="kaleido")
-        img_pie_bytes = fig_pie.to_image(format="png", engine="kaleido")
+        # 1. Gráfico de Barras para el PDF (Matplotlib)
+        plt.figure(figsize=(5, 3))
+        conteo_p = df["País"].value_counts()
+        mapa_colores = {"España": "#FFD700", "Alemania": "#8B4513", "Francia": "#87CEEB"}
+        colores_p = [mapa_colores.get(p, "#004a99") for p in conteo_p.index]
+        plt.bar(conteo_p.index, conteo_p.values, color=colores_p)
+        plt.title("Distribucion por Pais")
         
-        pdf.image(io.BytesIO(img_pais_bytes), x=10, y=50, w=90)
-        pdf.image(io.BytesIO(img_pie_bytes), x=110, y=50, w=90)
+        img_pais = io.BytesIO()
+        plt.savefig(img_pais, format='png', bbox_inches='tight')
+        plt.close()
+
+        # 2. Gráfico de Pastel para el PDF (Matplotlib)
+        plt.figure(figsize=(5, 3))
+        conteo_r = df["Estado"].value_counts()
+        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
+        # Limpiar etiquetas para Matplotlib (quitar emojis)
+        labels_clean = [label.replace("🔴 ", "").replace("🟡 ", "").replace("🟢 ", "") for label in conteo_r.index]
+        colores_r = [custom_colors.get(label, "gray") for label in conteo_r.index]
+        
+        plt.pie(conteo_r.values, labels=labels_clean, autopct='%1.1f%%', colors=colores_r, startangle=140)
+        plt.title("Niveles de Riesgo")
+        
+        img_pie = io.BytesIO()
+        plt.savefig(img_pie, format='png', bbox_inches='tight')
+        plt.close()
+
+        # Insertar imágenes en el PDF
+        pdf.image(img_pais, x=10, y=55, w=90)
+        pdf.image(img_pie, x=110, y=55, w=90)
         pdf.ln(65)
     except Exception as e:
         pdf.set_font("Arial", 'I', 10)
         pdf.set_text_color(255, 0, 0)
-        pdf.cell(200, 10, txt="Nota: Los graficos no pudieron incluirse en este reporte.", ln=True)
+        pdf.cell(200, 10, txt=f"Nota: No se pudieron generar los graficos ({e})", ln=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
@@ -143,111 +168,3 @@ with st.sidebar:
             df_upload = pd.read_csv(io.StringIO(content), sep=None, engine='python')
 
             if st.button("🚀 Procesar Archivo CSV", use_container_width=True):
-                nuevos = procesar_datos(df_upload)
-                if nuevos:
-                    st.session_state.historial.extend(nuevos)
-                    st.success(f"✅ {len(nuevos)} clientes procesados.")
-                    st.rerun() 
-        except Exception as e:
-            st.error(f"Error al leer el archivo: {e}")
-
-st.title("🏦 Churn Insight Banking")
-st.divider()
-
-st.subheader("📋 Análisis Individual")
-with st.container():
-    client_id = st.text_input("ID del Cliente", placeholder="Ej: CLI-001")
-    col1, col2 = st.columns(2)
-    with col1:
-        age = st.slider("Edad", 18, 90, 40)
-        num_p = st.selectbox("Productos", [1, 2, 3, 4])
-    with col2:
-        inactivo = st.selectbox("Actividad", [0, 1], format_func=lambda x: "Inactivo" if x==1 else "Activo")
-        pais = st.selectbox("País", ["Francia", "Alemania", "España"])
-        c_risk = {"Francia": 0, "Alemania": 1, "España": 2}[pais]
-
-    analyze_btn = st.button("🔍 Analizar Cliente")
-
-if analyze_btn:
-    if not client_id:
-        st.error("Ingrese un ID.")
-    elif any(item.get('ID Cliente') == client_id for item in st.session_state.historial):
-        st.error("ID duplicado.")
-    else:
-        df_m = pd.DataFrame([{'ID Cliente': client_id, 'Age': age, 'NumOfProducts': num_p, 
-                             'Inactivo_40_70': inactivo, 'Products_Risk_Flag': 0, 
-                             'Country_Risk_Flag': c_risk, 'Pais_Nombre': pais}])
-        res_list = procesar_datos(df_m)
-        if res_list:
-            res = res_list[0]
-            st.session_state.historial.append(res)
-            g1, g2 = st.columns([2, 1])
-            with g1:
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number", value=res['% Riesgo'],
-                    gauge={"axis": {"range": [0, 100]}, "bar": {"color": res['color_hex']}}))
-                st.plotly_chart(fig, use_container_width=True)
-            with g2:
-                st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
-
-if st.session_state.historial:
-    st.divider()
-    st.subheader("📊 Panel de Control y Resumen Ejecutivo")
-    df_metriz = pd.DataFrame(st.session_state.historial)
-    
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.metric("Tasa de Riesgo Promedio", f"{df_metriz['% Riesgo'].mean():.2f}%")
-    with m2:
-        alto = len(df_metriz[df_metriz["% Riesgo"] >= 58])
-        medio = len(df_metriz[(df_metriz["% Riesgo"] >= 40) & (df_metriz["% Riesgo"] < 58)])
-        st.metric("Riesgo (Alto/Medio)", f"{alto} / {medio}")
-    with m3:
-        st.metric("Total Analizados", len(df_metriz))
-
-    g_col1, g_col2 = st.columns(2)
-    with g_col1:
-        st.markdown("#### 🌎 Distribución por País")
-        conteo_pais = df_metriz["País"].value_counts().reset_index()
-        conteo_pais.columns = ["País", "Cantidad"]
-        
-        # Colores personalizados solicitados
-        mapa_colores = {
-            "España": "#FFD700",   # Amarillo
-            "Alemania": "#8B4513", # Café
-            "Francia": "#87CEEB"   # Celeste
-        }
-        colores_barras = [mapa_colores.get(p, "#004a99") for p in conteo_pais["País"]]
-        
-        fig_pais = go.Figure(go.Bar(
-            x=conteo_pais["País"], 
-            y=conteo_pais["Cantidad"], 
-            marker_color=colores_barras
-        ))
-        st.plotly_chart(fig_pais, use_container_width=True)
-
-    with g_col2:
-        st.markdown("#### 📈 Niveles de Riesgo")
-        conteo_estado = df_metriz["Estado"].value_counts().reset_index()
-        conteo_estado.columns = ["Nivel", "Total"]
-        custom_colors = {"🔴 Riesgo Alto": "#e24b4a", "🟡 Riesgo Medio": "#f5a623", "🟢 Seguro": "#3fc47a"}
-        plot_colors = [custom_colors[label] for label in conteo_estado["Nivel"]]
-        fig_pie = go.Figure(go.Pie(labels=conteo_estado["Nivel"], values=conteo_estado["Total"], hole=.4, marker_colors=plot_colors))
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # --- SECCIÓN DE DESCARGA PDF ---
-    try:
-        pdf_bytes = generar_pdf(df_metriz, fig_pais, fig_pie)
-        st.download_button(
-            label="📄 Descargar Reporte en PDF",
-            data=pdf_bytes,
-            file_name="Reporte_Churn_Insight.pdf",
-            mime="application/pdf",
-        )
-    except Exception as e:
-        st.error(f"Error al generar el reporte: {e}")
-
-    st.divider()
-    st.markdown("#### 🗒️ Detalle Individual de Clientes")
-    df_h = pd.DataFrame(st.session_state.historial[::-1])
-    st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
