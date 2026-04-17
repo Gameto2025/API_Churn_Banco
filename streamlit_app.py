@@ -144,27 +144,67 @@ if analyze_btn:
             with g2:
                 st.markdown(f"### {res['Estado']}\n{res['Plan de Acción']}")
 
-# --- TABLA RESUMEN ---
+# --- BUSCA LA SECCIÓN DE TABLA RESUMEN Y REEMPLÁZALA CON ESTA ---
 if st.session_state.historial:
     st.divider()
-    st.subheader("📊 Resumen de la sesión")
-    # --- MÉTRICAS DE RESUMEN (Insertar aquí) ---
+    st.subheader("📊 Panel de Control y Resumen Ejecutivo")
+    
+    # Creamos un DataFrame con todo el historial para los cálculos
     df_metriz = pd.DataFrame(st.session_state.historial)
-    col_m1, col_m2, col_m3 = st.columns(3)
     
-    with col_m1:
+    # --- 1. FILA DE MÉTRICAS (Tarjetas) ---
+    m1, m2, m3 = st.columns(3)
+    
+    with m1:
         avg_risk = df_metriz["% Riesgo"].mean()
-        st.metric("Riesgo Promedio", f"{avg_risk:.2f}%")
+        st.metric("Tasa de Riesgo Promedio", f"{avg_risk:.2f}%")
         
-    with col_m2:
-        # Filtramos los que tienen riesgo alto (>= 58%)
-        alto_riesgo = len(df_metriz[df_metriz["% Riesgo"] >= 58])
-        st.metric("Clientes en Riesgo Alto", alto_riesgo, delta=alto_riesgo, delta_color="inverse" if alto_riesgo > 0 else "normal")
+    with m2:
+        # Conteo por categorías basado en los emojis o el texto del estado
+        alto = len(df_metriz[df_metriz["% Riesgo"] >= 58])
+        medio = len(df_metriz[(df_metriz["% Riesgo"] >= 40) & (df_metriz["% Riesgo"] < 58)])
+        st.metric("Clientes en Riesgo (Alto/Medio)", f"{alto} / {medio}", delta=f"{alto} Críticos", delta_color="inverse")
         
-    with col_m3:
-        st.metric("Total Analizados", len(df_metriz))
+    with m3:
+        st.metric("Total de Clientes Analizados", len(df_metriz))
+
+    # --- 2. FILA DE GRÁFICOS ---
+    g_col1, g_col2 = st.columns(2)
     
-    st.divider() 
-    # -------------------------------------------
+    with g_col1:
+        # Gráfico de Barras: Distribución por País
+        st.markdown("#### 🌎 Distribución por País")
+        conteo_pais = df_metriz["País"].value_counts().reset_index()
+        conteo_pais.columns = ["País", "Cantidad"]
+        fig_pais = go.Figure(go.Bar(
+            x=conteo_pais["País"], 
+            y=conteo_pais["Cantidad"],
+            marker_color='#004a99'
+        ))
+        fig_pais.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        st.plotly_chart(fig_pais, use_container_width=True)
+
+    with g_col2:
+        # Gráfico de Tarta: Conteo por Categoría
+        st.markdown("#### 📈 Niveles de Riesgo")
+        conteo_estado = df_metriz["Estado"].value_counts().reset_index()
+        fig_pie = go.Figure(go.Pie(
+            labels=conteo_estado["index"], 
+            values=conteo_estado["Estado"],
+            hole=.4,
+            marker_colors=["#3fc47a", "#f5a623", "#e24b4a"] # Verde, Naranja, Rojo
+        ))
+        fig_pie.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    st.divider()
+
+    # --- 3. TABLA DETALLADA (Se mantiene justo debajo) ---
+    st.markdown("#### 📑 Detalle Individual de Clientes")
+    # Invertimos el historial para ver lo más reciente arriba
     df_h = pd.DataFrame(st.session_state.historial[::-1])
-    st.dataframe(df_h.drop(columns=['color_hex'], errors='ignore'), use_container_width=True, hide_index=True)
+    st.dataframe(
+        df_h.drop(columns=['color_hex'], errors='ignore'), 
+        use_container_width=True, 
+        hide_index=True
+    )
