@@ -208,7 +208,7 @@ with st.sidebar:
         st.rerun()
 
     # 2. Botón Procesar (El código que consultaste)
-    if archivo_subido is not None:
+    if uploaded_file is not None:
         try:
             # Leemos el archivo subido
             df_upload = pd.read_csv(archivo_subido)
