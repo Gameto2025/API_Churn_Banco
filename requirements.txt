@@ -5,4 +5,5 @@ plotly
 fpdf
 kaleido==1.0.0
 scikit-learn
-
+xgboost
+imbalanced-learn
