@@ -168,35 +168,37 @@ if st.session_state.historial:
     with m3:
         st.metric("Total de Clientes Analizados", len(df_metriz))
 
-    # --- 2. FILA DE GRÁFICOS ---
+    # --- 2. FILA DE GRÁFICOS (Corregida) ---
     g_col1, g_col2 = st.columns(2)
     
     with g_col1:
-        # Gráfico de Barras: Distribución por País
         st.markdown("#### 🌎 Distribución por País")
+        # Usamos nombres específicos para evitar el KeyError
         conteo_pais = df_metriz["País"].value_counts().reset_index()
-        conteo_pais.columns = ["País", "Cantidad"]
+        conteo_pais.columns = ["País", "Cantidad"] 
+        
         fig_pais = go.Figure(go.Bar(
             x=conteo_pais["País"], 
             y=conteo_pais["Cantidad"],
             marker_color='#004a99'
         ))
-        fig_pais.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        fig_pais.update_layout(height=300, margin=dict(t=20, b=20, l=0, r=0))
         st.plotly_chart(fig_pais, use_container_width=True)
 
     with g_col2:
-        # Gráfico de Tarta: Conteo por Categoría
         st.markdown("#### 📈 Niveles de Riesgo")
+        # Forzamos los nombres de las columnas aquí también
         conteo_estado = df_metriz["Estado"].value_counts().reset_index()
+        conteo_estado.columns = ["Nivel", "Total"]
+        
         fig_pie = go.Figure(go.Pie(
-            labels=conteo_estado["index"], 
-            values=conteo_estado["Estado"],
+            labels=conteo_estado["Nivel"], # Antes decía "index", por eso fallaba
+            values=conteo_estado["Total"],
             hole=.4,
-            marker_colors=["#3fc47a", "#f5a623", "#e24b4a"] # Verde, Naranja, Rojo
+            marker_colors=["#3fc47a", "#f5a623", "#e24b4a"]
         ))
-        fig_pie.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0))
+        fig_pie.update_layout(height=300, margin=dict(t=20, b=20, l=0, r=0))
         st.plotly_chart(fig_pie, use_container_width=True)
-
     st.divider()
 
     # --- 3. TABLA DETALLADA (Se mantiene justo debajo) ---
