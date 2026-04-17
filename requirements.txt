@@ -27,4 +27,4 @@ xgboost==3.1.2
 streamlit
 plotly
 fpdf
-kaleido
+kaleido==0.1.0post1
