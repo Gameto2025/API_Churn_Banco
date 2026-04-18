@@ -73,15 +73,17 @@ def generar_pdf(df):
             plt.close()
 
             # Insertar en PDF
-            pdf.image(tmp_pais.name, x=10, y=75, w=90)
-            pdf.image(tmp_pie.name, x=110, y=75, w=90)
-            pdf.set_y(155) 
-            pdf.ln(5)
+            posicion_y = pdf.get_y() + 10
+            pdf.image(tmp_pais.name, x=10, y=posicion_y, w=95)
+            pdf.image(tmp_pie.name, x=110, y=posicion_y, w=85)
             
-            tmp_pais_path, tmp_pie_path = tmp_pais.name, tmp_pie.name
-        
-        os.remove(tmp_pais_path)
-        os.remove(tmp_pie_path)
+            # Bajamos el cursor para que la tabla no se encime en los gráficos
+            pdf.set_y(posicion_y + 65) 
+            pdf.ln(5)
+                        
+           # tmp_pais_path, tmp_pie_path = tmp_pais.name, tmp_pie.name
+            # os.remove(tmp_pais_path)
+         #    os.remove(tmp_pie_path)
 
     except Exception as e:
         pdf.set_font("Arial", 'I', 8)
