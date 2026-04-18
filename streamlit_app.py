@@ -43,20 +43,25 @@ def generar_pdf(df):
             pivot_df = pivot_df[columnas_presentes]
             
             # Dibujar barras agrupadas
+             # --- Dentro de la sección: Dibujar barras agrupadas ---
             ax = pivot_df.plot(kind='bar', color=[colores_dict[c] for c in pivot_df.columns], ax=plt.gca())
             plt.title("Riesgo por Pais")
             plt.xticks(rotation=0)
-            plt.legend(title="Estado", fontsize='small')
             
+            # MODIFICACIÓN AQUÍ: Movemos la leyenda fuera del gráfico (a la derecha)
+            plt.legend(title="Estado", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+
             # Añadir etiquetas de cantidad sobre las barras
             for p in ax.patches:
                 if p.get_height() > 0:
                     ax.annotate(str(int(p.get_height())), (p.get_x() + p.get_width() / 2., p.get_height()),
                                 ha='center', va='center', xytext=(0, 5), textcoords='offset points', fontsize=8)
-
-            plt.savefig(tmp_pais.name, format='png', bbox_inches='tight')
+            
+            # MUY IMPORTANTE: bbox_inches='tight' asegura que la leyenda externa no se corte
+            plt.savefig(tmp_pais.name, format='png', bbox_inches='tight', dpi=150)
             plt.close()
 
+           
             # 2. Gráfico de Pastel (Riesgos)
             plt.figure(figsize=(5, 3))
             conteo_r = df["Estado"].value_counts()
