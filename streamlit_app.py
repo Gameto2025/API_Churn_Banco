@@ -114,9 +114,30 @@ st.set_page_config(page_title="Bank - Churn Predictor", page_icon="🏦", layout
 st.markdown("""
     <style>
     .main { background-color: #f5f7f9; }
+    
+    /* Estilo para tus botones azules actuales */
     div.stButton > button:first-child {
         background-color: #004a99; color: white; width: 100%;
         border-radius: 10px; height: 3.5em; font-weight: bold; border: none;
+    }
+
+    /* NUEVO: Estilo llamativo para el botón de descarga PDF */
+    div.stDownloadButton > button:first-child {
+        background-color: #2e7d32; /* Verde bosque profesional */
+        color: white;
+        width: 100%;
+        border-radius: 10px;
+        height: 3.5em;
+        font-weight: bold;
+        border: none;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: 0.3s;
+    }
+    
+    /* Efecto al pasar el ratón sobre el botón de descarga */
+    div.stDownloadButton > button:first-child:hover {
+        background-color: #1b5e20;
+        transform: scale(1.02);
     }
     </style>
     """, unsafe_allow_html=True)
